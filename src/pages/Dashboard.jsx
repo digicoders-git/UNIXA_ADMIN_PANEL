@@ -10,7 +10,9 @@ import {
   FaSyncAlt,
   FaEnvelopeOpenText,
   FaTags,
+  FaUserTie,
 } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -41,6 +43,7 @@ const shortId = (id = "") => (id.length > 8 ? `...${id.slice(-8)}` : id);
 // ---------- component ----------
 export default function Dashboard() {
   const { themeColors } = useTheme();
+  const navigate = useNavigate();
 
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,12 +123,14 @@ export default function Dashboard() {
       description: `This month: ${fmtCurrency(
         summary.monthRevenue
       )} • Avg order: ${fmtCurrency(summary.avgOrderValue)}`,
+      link: null, 
     },
     {
       title: "Orders",
       value: fmtNum(summary.totalOrders),
       icon: FaShoppingCart,
       description: `Today: ${fmtNum(summary.todayOrders)}`,
+      link: "/orders",
     },
     {
       title: "Catalog",
@@ -133,17 +138,15 @@ export default function Dashboard() {
       icon: FaBoxOpen,
       description: `Active products: ${fmtNum(
         summary.activeProducts
-      )} • Categories: ${fmtNum(summary.totalCategories)} (${fmtNum(
-        summary.activeCategories
-      )} active)`,
+      )} • Categories: ${fmtNum(summary.totalCategories)}`,
+      link: "/products",
     },
     {
-      title: "Engagement",
-      value: fmtNum(summary.totalEnquiries),
-      icon: FaUsers,
-      description: `Unread enquiries: ${fmtNum(
-        summary.unreadEnquiries
-      )} • Active offers: ${fmtNum(summary.activeOffers)}`,
+      title: "Team",
+      value: fmtNum(summary.totalEmployees),
+      icon: FaUserTie,
+      description: `Active members: ${fmtNum(summary.activeEmployees)}`,
+      link: "/employees",
     },
   ];
 
@@ -244,7 +247,8 @@ export default function Dashboard() {
             {summaryCards.map((stat, index) => (
               <div
                 key={index}
-                className="p-6 rounded-xl border transition-all duration-300 hover:shadow-lg group"
+                onClick={() => stat.link && navigate(stat.link)}
+                className={`p-6 rounded-xl border transition-all duration-300 hover:shadow-lg group ${stat.link ? "cursor-pointer" : ""}`}
                 style={{
                   backgroundColor: themeColors.surface,
                   borderColor: themeColors.border,

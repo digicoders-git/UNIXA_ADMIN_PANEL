@@ -1,7 +1,9 @@
 // src/components/Header.jsx
-import { memo, useState, useEffect } from "react";
+import { memo, useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
+import { getNotifications } from "../apis/notifications";
 import { 
   FaCog, 
   FaSun, 
@@ -12,7 +14,12 @@ import {
   FaBriefcase,
   FaStar,
   FaGem,
-  FaSquare
+  FaSquare,
+  FaBell,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaExclamationCircle,
+  FaInfoCircle
 } from "react-icons/fa";
 
 const SettingsModal = ({
@@ -274,6 +281,41 @@ const Header = memo(({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { themeColors, toggleTheme, palette, changePalette, availablePalettes } = useTheme();
   const { currentFont } = useFont();
+  
+  const [notifications, setNotifications] = useState([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchNotifications();
+    // Close dropdown on outside click
+    const handleClickOutside = (event) => {
+        if (notifRef.current && !notifRef.current.contains(event.target)) {
+            setIsNotifOpen(false);
+        }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+        const res = await getNotifications();
+        setNotifications(res || []);
+    } catch (err) {
+        console.error("Failed to fetch notifications:", err);
+    }
+  };
+
+  const getIcon = (type) => {
+      switch(type) {
+          case 'Success': return <FaCheckCircle className="text-green-500" />;
+          case 'Warning': return <FaExclamationTriangle className="text-yellow-500" />;
+          case 'Alert': return <FaExclamationCircle className="text-red-500" />;
+          default: return <FaInfoCircle className="text-blue-500" />;
+      }
+  };
 
   return (
     <>
@@ -308,6 +350,80 @@ const Header = memo(({
         </div>
 
         <div className="flex items-center space-x-2">
+        
+          {/* Notification Bell */}
+          <div className="relative" ref={notifRef}>
+              <button 
+                  onClick={() => setIsNotifOpen(!isNotifOpen)}
+                  className="p-2 rounded-md border hover:scale-110 transition-all duration-300 relative"
+                  style={{
+                      backgroundColor: themeColors.background,
+                      color: themeColors.text,
+                      borderColor: themeColors.border,
+                  }}
+              >
+                  <FaBell className={`text-sm ${isNotifOpen ? 'text-yellow-500' : ''}`} />
+                  {notifications.length > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">
+                          {notifications.length > 9 ? '9+' : notifications.length}
+                      </span>
+                  )}
+              </button>
+
+              {/* Notification Dropdown */}
+              {isNotifOpen && (
+                  <div 
+                    className="absolute right-0 mt-3 w-80 rounded-xl shadow-2xl border overflow-hidden animate-fade-in-up"
+                    style={{
+                        backgroundColor: themeColors.surface,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                        zIndex: 100
+                    }}
+                  >
+                      <div className="p-3 border-b flex justify-between items-center" style={{ borderColor: themeColors.border }}>
+                          <h3 className="font-semibold text-sm">Notifications</h3>
+                          <span className="text-xs opacity-60 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{notifications.length} New</span>
+                      </div>
+                      
+                      <div className="max-h-80 overflow-y-auto">
+                          {notifications.length === 0 ? (
+                              <div className="p-8 text-center opacity-50 text-xs">
+                                  No new notifications
+                              </div>
+                          ) : (
+                              <div className="divide-y" style={{ borderColor: themeColors.border }}>
+                                  {notifications.slice(0, 5).map(notif => (
+                                      <div key={notif._id} className="p-3 hover:bg-black/5 transition flex gap-3 items-start">
+                                          <div className="mt-1 flex-shrink-0 text-lg">
+                                              {getIcon(notif.type)}
+                                          </div>
+                                          <div>
+                                              <p className="text-sm font-bold line-clamp-1">{notif.title}</p>
+                                              <p className="text-xs opacity-70 line-clamp-2 mt-0.5">{notif.message}</p>
+                                              <p className="text-[10px] opacity-40 mt-1">{new Date(notif.sentAt).toLocaleString()}</p>
+                                          </div>
+                                      </div>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+                      
+                      <div className="p-2 border-t text-center" style={{ borderColor: themeColors.border }}>
+                          <button 
+                            onClick={()=>{
+                                setIsNotifOpen(false);
+                                navigate('/notifications');
+                            }}
+                            className="text-xs text-blue-500 hover:underline font-medium"
+                          >
+                              View All Notifications
+                          </button>
+                      </div>
+                  </div>
+              )}
+          </div>
+
           {/* Settings Button */}
           <button
             onClick={() => setIsSettingsOpen(true)}
