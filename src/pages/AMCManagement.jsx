@@ -34,7 +34,7 @@ export default function AMCManagement() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   
-  // Forms
+  // Forms controls
   const [renewForm, setRenewForm] = useState({});
   const [createForm, setCreateForm] = useState({
       customerId: "",
