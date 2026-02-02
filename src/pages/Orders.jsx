@@ -337,30 +337,32 @@ export default function Orders() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr
-                style={{
-                  backgroundColor: themeColors.background + "30",
-                }}
-              >
-                {[
-                  "Order ID",
-                  "Customer",
-                  "Items",
-                  "Amount",
-                  "Offer",
-                  "Status",
-                  "Payment",
-                  "Created",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: themeColors.text }}
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
+                <tr
+                  className="border-b"
+                  style={{
+                    backgroundColor: themeColors.background + "50",
+                    borderColor: themeColors.border,
+                  }}
+                >
+                  {[
+                    "Order ID",
+                    "Customer",
+                    "Items",
+                    "Amount",
+                    "Status",
+                    "Payment",
+                    "Created",
+                    "Action",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
+                      style={{ color: themeColors.text }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
             </thead>
             <tbody
               className="divide-y"
@@ -395,145 +397,118 @@ export default function Orders() {
                       (it) =>
                         `${it.productName || it.product?.name || "Item"} x${
                           it.quantity || 1
-                        } (${it.size || "-"}, ${it.color || "-"})`
+                        }`
                     )
                     .join(", ");
 
                   return (
-                    <tr key={id}>
+                    <tr 
+                      key={id} 
+                      className="hover:bg-slate-50/50 transition-colors group"
+                      style={{ borderBottom: `1px solid ${themeColors.border}40` }}
+                    >
                       {/* Order ID */}
-                      <td
-                        className="px-4 py-2 font-mono text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        {id}
+                      <td className="px-4 py-4">
+                        <div 
+                          className="font-mono text-[10px] bg-slate-100 px-2 py-1 rounded w-fit opacity-70 group-hover:opacity-100 transition-opacity"
+                          title={id}
+                          style={{ color: themeColors.text }}
+                        >
+                          #{id.slice(-8).toUpperCase()}
+                        </div>
                       </td>
 
                       {/* Customer */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        <div className="font-medium text-sm">
-                          {shipping.name || "-"}
+                      <td className="px-4 py-4">
+                        <div className="font-bold text-sm" style={{ color: themeColors.text }}>
+                          {shipping.name || "Guest User"}
                         </div>
-                        <div className="opacity-70">
-                          {shipping.phone || "-"}
-                        </div>
-                        <div className="opacity-60">
-                          {shipping.city}, {shipping.state}
-                        </div>
-                        <div className="opacity-60">
-                          User ID: {o.userId || "-"}
+                        <div className="text-[10px] opacity-60 flex items-center gap-2 mt-0.5" style={{ color: themeColors.text }}>
+                          <span>{shipping.phone || "-"}</span>
+                          {shipping.city && <span>• {shipping.city}</span>}
                         </div>
                       </td>
 
                       {/* Items */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        <div className="line-clamp-3">{itemsText}</div>
-                        {o.notes && (
-                          <div
-                            className="mt-1 text-[11px] italic opacity-70"
-                            style={{ color: themeColors.text }}
-                          >
-                            Note: {o.notes}
+                      <td className="px-4 py-4 max-w-[200px]">
+                        <div 
+                          className="text-xs truncate font-medium" 
+                          style={{ color: themeColors.text }}
+                          title={itemsText}
+                        >
+                          {itemsText}
+                        </div>
+                        {o.items?.length > 1 && (
+                          <div className="text-[10px] text-blue-500 font-bold uppercase mt-0.5">
+                            +{o.items.length - 1} more items
                           </div>
                         )}
                       </td>
 
-                      {/* Amounts */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        <div>
-                          Subtotal: {fmtCurrency(o.subtotal)}
+                      {/* Amount */}
+                      <td className="px-4 py-4">
+                        <div className="font-black text-sm" style={{ color: themeColors.text }}>
+                          {fmtCurrency(o.total)}
                         </div>
-                        <div>
-                          Discount:{" "}
-                          {o.discount
-                            ? `- ${fmtCurrency(o.discount)}`
-                            : fmtCurrency(0)}
-                        </div>
-                        <div className="font-semibold">
-                          Total: {fmtCurrency(o.total)}
-                        </div>
+                        {o.discount > 0 && (
+                          <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                            -{fmtCurrency(o.discount)} <span className="text-[8px] uppercase tracking-tighter opacity-70">Saved</span>
+                          </div>
+                        )}
                       </td>
 
-                      {/* Offer */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        {o.offerCode || "-"}
-                      </td>
-
-                      {/* Status + change control */}
-                      <td className="px-4 py-2 text-xs">
-                        <div style={statusBadgeStyle(o.status || "pending")}>
+                      {/* Status */}
+                      <td className="px-4 py-4">
+                        <div style={statusBadgeStyle(o.status || "pending")} className="uppercase tracking-widest text-[9px] px-3 py-1 font-black">
                           {o.status || "pending"}
-                        </div>
-                        <div className="mt-2">
-                          <select
-                            value={o.status || "pending"}
-                            disabled={!isLoggedIn || saving}
-                            onChange={(e) =>
-                              handleStatusChange(o, e.target.value)
-                            }
-                            className="mt-1 px-2 py-1 rounded-lg border text-xs"
-                            style={{
-                              backgroundColor: themeColors.surface,
-                              borderColor: themeColors.border,
-                              color: themeColors.text,
-                            }}
-                          >
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s.charAt(0).toUpperCase() + s.slice(1)}
-                              </option>
-                            ))}
-                          </select>
                         </div>
                       </td>
 
                       {/* Payment */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        <div className="mb-1">
-                          Method: {o.paymentMethod || "-"}
+                      <td className="px-4 py-4">
+                        <div className="text-[10px] font-bold uppercase tracking-tight opacity-70 mb-1" style={{ color: themeColors.text }}>
+                          {o.paymentMethod || "COD"}
                         </div>
-                        <div>
-                          <span
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"
-                            style={{
-                              backgroundColor:
-                                o.paymentStatus === "paid"
-                                  ? (themeColors.success ||
-                                      themeColors.primary) + "20"
-                                  : themeColors.background + "80",
-                              color:
-                                o.paymentStatus === "paid"
-                                  ? themeColors.success ||
-                                    themeColors.primary
-                                  : themeColors.text,
-                            }}
-                          >
-                            {o.paymentStatus || "pending"}
-                          </span>
-                        </div>
+                        <span
+                          className={`inline-flex px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                            o.paymentStatus === "paid" 
+                              ? "bg-emerald-100 text-emerald-700" 
+                              : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {o.paymentStatus || "pending"}
+                        </span>
                       </td>
 
                       {/* Created */}
-                      <td
-                        className="px-4 py-2 text-xs"
-                        style={{ color: themeColors.text }}
-                      >
-                        {fmtDateTime(o.createdAt)}
+                      <td className="px-4 py-4">
+                        <div className="text-[10px] font-bold" style={{ color: themeColors.text }}>
+                          {new Date(o.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                        </div>
+                        <div className="text-[9px] opacity-50" style={{ color: themeColors.text }}>
+                          {new Date(o.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+
+                      {/* Action */}
+                      <td className="px-4 py-4">
+                        <select
+                          value={o.status || "pending"}
+                          disabled={!isLoggedIn || saving}
+                          onChange={(e) => handleStatusChange(o, e.target.value)}
+                          className="px-2 py-1 rounded-lg border text-[10px] font-bold cursor-pointer hover:border-blue-400 transition-colors outline-none"
+                          style={{
+                            backgroundColor: themeColors.surface,
+                            borderColor: themeColors.border,
+                            color: themeColors.text,
+                          }}
+                        >
+                          {STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {s.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                     </tr>
                   );

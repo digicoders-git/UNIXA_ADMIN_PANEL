@@ -940,29 +940,30 @@ export default function Products() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr
-                  style={{
-                    backgroundColor: themeColors.background + "30",
-                  }}
-                >
-                  {[
-                    "Name",
-                    "Category",
-                    "Price",
-                    "Discount",
-                    "Status",
-                    "Created",
-                    "Actions",
-                  ].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
-                      style={{ color: themeColors.text }}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
+                  <tr
+                    className="border-b"
+                    style={{
+                      backgroundColor: themeColors.background + "50",
+                      borderColor: themeColors.border,
+                    }}
+                  >
+                    {[
+                      "Product",
+                      "Category",
+                      "Pricing",
+                      "Status",
+                      "Stock / Date",
+                      "Actions",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
+                        style={{ color: themeColors.text }}
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
               </thead>
               <tbody
                 className="divide-y"
@@ -989,160 +990,103 @@ export default function Products() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map((p) => {
-                    const catName =
-                      p.category?.name ||
-                      categoryMap[p.category] ||
-                      p.categoryId?.name ||
-                      categoryMap[p.categoryId] ||
-                      "-";
-                    return (
-                      <tr key={p._id || p.id || p.slug}>
-                        <td
-                          className="px-4 py-2"
-                          style={{ color: themeColors.text }}
+                    filteredProducts.map((p) => {
+                      const id = p._id || p.id || p.slug;
+                      const catName =
+                        p.category?.name ||
+                        categoryMap[p.category] ||
+                        p.categoryId?.name ||
+                        categoryMap[p.categoryId] ||
+                        "-";
+                      const finalPrice = getFinalPrice(p);
+                      const mainImg = p.mainImage?.url || (p.galleryImages?.[0]?.url) || "";
+
+                      return (
+                        <tr 
+                          key={id}
+                          className="hover:bg-slate-50/50 transition-colors group"
+                          style={{ borderBottom: `1px solid ${themeColors.border}40` }}
                         >
-                          {p.name}
-                          {p.discountPercent ? (
-                            <span className="ml-1 text-xs opacity-60">
-                              ({p.discountPercent}% off)
-                            </span>
-                          ) : null}
-                        </td>
-                        <td
-                          className="px-4 py-2"
-                          style={{ color: themeColors.text }}
-                        >
-                          {catName}
-                        </td>
-                        <td
-                          className="px-4 py-2"
-                          style={{ color: themeColors.text }}
-                        >
-                          {fmtCurrency(getFinalPrice(p))}
-                          {p.discountPercent || p.offer ? (
-                            <span className="ml-1 text-[10px] line-through opacity-60">
-                              {fmtCurrency(p.price)}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td
-                          className="px-4 py-2 text-xs"
-                          style={{ color: themeColors.text }}
-                        >
-                          {p.discountPercent
-                            ? `${p.discountPercent}%`
-                            : "-"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <span
-                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"
-                            style={{
-                              backgroundColor: p.isActive
-                                ? (themeColors.success ||
-                                    themeColors.primary) + "15"
-                                : themeColors.border,
-                              color: p.isActive
-                                ? themeColors.success ||
-                                  themeColors.primary
-                                : themeColors.text,
-                            }}
-                          >
-                            {p.isActive ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td
-                          className="px-4 py-2 text-xs"
-                          style={{ color: themeColors.text }}
-                        >
-                          {p.createdAt ? fmtDate(p.createdAt) : "-"}
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex items-center gap-2">
-                            {/* Active/Inactive Toggle Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleToggleStatus(p)}
-                              disabled={!isLoggedIn || saving}
-                              className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                              style={{
-                                borderColor: themeColors.border,
-                                color: p.isActive
-                                  ? themeColors.warning || "#f59e0b"
-                                  : themeColors.success ||
-                                    themeColors.primary,
-                              }}
-                              title={
-                                isLoggedIn
-                                  ? p.isActive
-                                    ? "Mark as Inactive"
-                                    : "Mark as Active"
-                                  : "Login as admin to change status"
-                              }
-                            >
-                              {p.isActive ? (
-                                <FaToggleOn />
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              {mainImg ? (
+                                <img src={mainImg} alt={p.name} className="w-10 h-10 rounded-lg object-contain bg-slate-50 border border-slate-100 flex-shrink-0" />
                               ) : (
-                                <FaToggleOff />
+                                <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                  <FaImage size={14} />
+                                </div>
                               )}
-                            </button>
-
-                            {/* View Button */}
+                              <div className="max-w-[200px]">
+                                <div className="font-bold text-sm truncate" style={{ color: themeColors.text }}>{p.name}</div>
+                                <div className="text-[10px] opacity-50 truncate" style={{ color: themeColors.text }}>{p.description?.slice(0, 40)}...</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100" style={{ color: themeColors.text }}>
+                              {catName}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="font-black text-sm" style={{ color: themeColors.text }}>
+                              {fmtCurrency(finalPrice)}
+                            </div>
+                            {p.discountPercent > 0 && (
+                              <div className="text-[10px] flex items-center gap-1">
+                                <span className="line-through opacity-40">{fmtCurrency(p.price)}</span>
+                                <span className="text-emerald-600 font-bold">{p.discountPercent}% OFF</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
                             <button
-                              type="button"
-                              onClick={() => handleView(p)}
-                              className="p-2 rounded-lg border text-xs"
-                              style={{
-                                borderColor: themeColors.border,
-                                color: themeColors.text,
-                              }}
-                              title="View full details"
+                              onClick={() => handleToggleStatus(p)}
+                              title={p.isActive ? "Deactivate" : "Activate"}
+                              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                                p.isActive 
+                                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" 
+                                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                              }`}
                             >
-                              <FaEye />
+                              {p.isActive ? "Active" : "Inactive"}
                             </button>
-
-                            {/* Edit Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(p)}
-                              disabled={!isLoggedIn}
-                              className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                              style={{
-                                borderColor: themeColors.border,
-                                color: themeColors.text,
-                              }}
-                              title={
-                                isLoggedIn
-                                  ? "Edit"
-                                  : "Login as admin to edit"
-                              }
-                            >
-                              <FaEdit />
-                            </button>
-
-                            {/* Delete Button */}
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(p)}
-                              disabled={!isLoggedIn || saving}
-                              className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                              style={{
-                                borderColor: themeColors.border,
-                                color: themeColors.danger,
-                              }}
-                              title={
-                                isLoggedIn
-                                  ? "Delete"
-                                  : "Login as admin to delete"
-                              }
-                            >
-                              <FaTrash />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                          </td>
+                          <td className="px-4 py-4">
+                             <div className="text-xs font-bold" style={{ color: themeColors.text }}>
+                                {p.createdAt ? fmtDate(p.createdAt) : "-"}
+                             </div>
+                             <div className="text-[10px] opacity-50 uppercase tracking-tighter">Listed Date</div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleView(p)}
+                                className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
+                                title="View details"
+                              >
+                                <FaEye size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleEdit(p)}
+                                disabled={!isLoggedIn}
+                                className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30"
+                                title="Edit"
+                              >
+                                <FaEdit size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(p)}
+                                disabled={!isLoggedIn || saving}
+                                className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-30"
+                                title="Delete"
+                              >
+                                <FaTrash size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                 )}
               </tbody>
             </table>

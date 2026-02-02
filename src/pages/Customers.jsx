@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import {
@@ -31,6 +31,7 @@ import {
   FaCalendarCheck,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
+
 
 const emptyForm = {
   name: "",
@@ -99,7 +100,7 @@ export default function Customers() {
   });
 
   // Fetch customers
-  const fetchCustomersList = async () => {
+  const fetchCustomersList = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getCustomers(search);
@@ -109,11 +110,11 @@ export default function Customers() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [search]);
 
   useEffect(() => {
     fetchCustomersList();
-  }, [search]); // Auto-search on type
+  }, [search, fetchCustomersList]); // Auto-search on type
 
   const refreshViewingCustomer = async () => {
       if(viewing) {
@@ -212,6 +213,7 @@ export default function Customers() {
           refreshViewingCustomer(); // Update UI
           setServiceForm({ date: new Date().toISOString().split('T')[0], type: "Regular Service", technicianName: "", notes: "", nextDueDate: "" });
       } catch (err) {
+          console.error(err);
           Swal.fire("Error", "Failed to log service", "error");
       } finally {
           setSaving(false);
@@ -229,6 +231,7 @@ export default function Customers() {
           refreshViewingCustomer(); // Update UI
           setComplaintForm({ type: "No Water", description: "", priority: "Medium", assignedTechnician: "" });
       } catch (err) {
+          console.error(err);
           Swal.fire("Error", "Failed to log complaint", "error");
       } finally {
           setSaving(false);
@@ -251,6 +254,7 @@ export default function Customers() {
         Swal.fire("Deleted!", "Customer has been deleted.", "success");
         fetchCustomersList();
       } catch (err) {
+        console.error(err);
         Swal.fire("Error", "Failed to delete customer", "error");
       }
     }
@@ -329,86 +333,89 @@ export default function Customers() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr
-                    style={{ backgroundColor: themeColors.background, color: themeColors.textSecondary }}
-                    className="text-sm uppercase tracking-wider border-b"
+                    style={{ backgroundColor: themeColors.background + "50", color: themeColors.text }}
+                    className="text-[11px] font-bold uppercase tracking-widest border-b"
                   >
-                    <th className="p-4 font-semibold">Customer</th>
-                    <th className="p-4 font-semibold">Purifier</th>
-                    <th className="p-4 font-semibold">Status / Type</th>
-                    <th className="p-4 font-semibold">Next Service</th>
-                    <th className="p-4 font-semibold text-right">Actions</th>
+                    <th className="p-4">Customer Info</th>
+                    <th className="p-4">Unit Details</th>
+                    <th className="p-4">Status & Type</th>
+                    <th className="p-4">Next Service</th>
+                    <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: themeColors.border }}>
                   {customers.map((cust) => (
                     <tr
                       key={cust._id}
-                      className="hover:bg-opacity-50 transition"
-                      style={{ ":hover": { backgroundColor: themeColors.background } }}
+                      className="hover:bg-slate-50/50 transition-colors group"
+                      style={{ borderBottom: `1px solid ${themeColors.border}40` }}
                     >
                       <td className="p-4">
-                        <div className="font-bold flex items-center gap-2">
+                        <div className="font-bold text-sm" style={{ color: themeColors.text }}>
                            {cust.name}
-                           {cust.rating > 0 && <span className="text-yellow-500 text-xs">★ {cust.rating}</span>}
                         </div>
-                        <div className="text-xs opacity-60 flex flex-col">
-                            <span className="flex items-center gap-1"><FaPhone size={10}/> {cust.mobile}</span>
-                            <span className="flex items-center gap-1"><FaMapMarkerAlt size={10}/> {cust.address?.city || "-"}</span>
+                        <div className="text-[10px] opacity-60 flex items-center gap-2 mt-0.5" style={{ color: themeColors.text }}>
+                            <span className="flex items-center gap-1"><FaPhone size={8} className="text-blue-500"/> {cust.mobile}</span>
+                            {cust.address?.city && <span className="flex items-center gap-1 opacity-70"> • {cust.address.city}</span>}
                         </div>
                       </td>
                       <td className="p-4">
                          {cust.purifiers && cust.purifiers.length > 0 ? (
-                             <div className="text-sm">
-                                 <div className="font-medium">{cust.purifiers[0].brand} {cust.purifiers[0].model}</div>
-                                 <div className="text-xs opacity-70">{cust.purifiers[0].type}</div>
+                             <div className="text-xs">
+                                 <div className="font-bold" style={{ color: themeColors.text }}>{cust.purifiers[0].brand} {cust.purifiers[0].model}</div>
+                                 <div className="text-[10px] opacity-50 uppercase tracking-tighter mt-0.5">{cust.purifiers[0].type} System</div>
                              </div>
                          ) : (
-                             <span className="text-xs opacity-50">-</span>
+                             <span className="text-[10px] opacity-40 italic">No Unit Registered</span>
                          )}
                       </td>
                       <td className="p-4">
                          <div className="flex flex-col gap-1 items-start">
-                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                                 cust.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                             <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
+                                 cust.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                              }`}>
                                  {cust.status}
                              </span>
-                             <span className="text-xs opacity-70 bg-gray-100 px-2 py-0.5 rounded">{cust.type}</span>
+                             <span className="text-[10px] font-bold opacity-60 px-2 py-0.5 bg-slate-100 rounded mt-0.5">{cust.type}</span>
                          </div>
                       </td>
-                      <td className="p-4 text-sm">
-                          {/* Logic to show next service date from history or placeholder */}
-                          <div className="flex items-center gap-1 opacity-80">
-                              <FaCalendarCheck className="text-blue-400"/>
-                              <span>
-                                  {cust.serviceHistory?.length > 0 && cust.serviceHistory[cust.serviceHistory.length-1].nextDueDate
-                                   ? new Date(cust.serviceHistory[cust.serviceHistory.length-1].nextDueDate).toLocaleDateString()
-                                   : "-"}
-                              </span>
+                      <td className="p-4">
+                          <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                                <FaCalendarCheck size={12}/>
+                              </div>
+                              <div>
+                                  <div className="text-xs font-bold" style={{ color: themeColors.text }}>
+                                      {cust.serviceHistory?.length > 0 && cust.serviceHistory[cust.serviceHistory.length-1].nextDueDate
+                                       ? new Date(cust.serviceHistory[cust.serviceHistory.length-1].nextDueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                                       : "Not Set"}
+                                  </div>
+                                  <div className="text-[9px] opacity-50 uppercase">Due Date</div>
+                              </div>
                           </div>
                       </td>
                       <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => { setViewing(cust); setShowHistory(false); }}
-                            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition"
+                            className="p-2 rounded-lg hover:bg-blue-50 text-blue-500 transition-colors"
                             title="View Full Profile"
                           >
-                            <FaEye />
+                            <FaEye size={14} />
                           </button>
                           <button
                             onClick={() => openEditModal(cust)}
-                            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition"
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
                             title="Edit"
                           >
-                            <FaEdit />
+                            <FaEdit size={14} />
                           </button>
                           <button
                             onClick={() => handleDelete(cust)}
-                            className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition"
+                            className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors"
                             title="Delete"
                           >
-                            <FaTrash />
+                            <FaTrash size={14} />
                           </button>
                         </div>
                       </td>

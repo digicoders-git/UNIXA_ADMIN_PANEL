@@ -413,7 +413,7 @@ export default function Enquiries() {
                           borderColor: themeColors.border
                         }}
                       >
-                        {/* Name */}
+                        {/* 1. Name */}
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="relative">
@@ -429,30 +429,37 @@ export default function Enquiries() {
                                 />
                               )}
                             </div>
-                            <div>
-                               <div className={`text-sm font-bold ${!e.isRead ? 'text-slate-900' : 'text-slate-600'}`} style={{ color: themeColors.text }}>
-                                 {e.name || "Anonymous"}
-                               </div>
-                               <div className="text-[11px] opacity-50 flex items-center gap-1" style={{ color: themeColors.text }}>
-                                 <FaClock size={10} /> {fmtDateTime(e.createdAt)}
-                               </div>
+                            <div className={`text-sm font-bold ${!e.isRead ? 'text-slate-900' : 'text-slate-600'}`} style={{ color: themeColors.text }}>
+                              {e.name || "Anonymous"}
                             </div>
                           </div>
                         </td>
 
-                        {/* Subject */}
+                        {/* 2. Contact */}
                         <td className="px-6 py-4">
-                          <div className={`text-sm tracking-tight ${!e.isRead ? 'font-bold text-slate-900' : 'text-slate-600'}`} style={{ color: themeColors.text }}>
+                           <div className="text-[11px] opacity-70 flex flex-col gap-1" style={{ color: themeColors.text }}>
+                              {e.email ? <span className="flex items-center gap-1.5"><FaEnvelope size={10} className="opacity-50" /> {e.email}</span> : <span className="opacity-40">-</span>}
+                              {e.phone ? <span className="flex items-center gap-1.5"><FaPhone size={10} className="opacity-50" /> {e.phone}</span> : <span className="opacity-40">-</span>}
+                           </div>
+                        </td>
+
+                        {/* 3. Subject */}
+                        <td className="px-6 py-4 max-w-[200px]">
+                          <div className={`text-sm tracking-tight mb-0.5 ${!e.isRead ? 'font-bold text-slate-900' : 'text-slate-600'}`} style={{ color: themeColors.text }}>
                             {e.subject || "No Subject"}
                           </div>
-                          <div className="text-xs opacity-50 truncate max-w-[200px]" style={{ color: themeColors.text }}>
-                            {e.message}
+                          <div 
+                            className="text-xs opacity-50 truncate" 
+                            style={{ color: themeColors.text }} 
+                            title={e.message}
+                          >
+                            {e.message ? (e.message.length > 40 ? e.message.substring(0, 40) + "..." : e.message) : ""}
                           </div>
                         </td>
 
-                        {/* Status */}
+                        {/* 4. Status */}
                         <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-col gap-1.5 items-start">
                             <div style={statusBadgeStyle(e.status || "new")}>
                               {e.status || "new"}
                             </div>
@@ -471,7 +478,15 @@ export default function Enquiries() {
                           </div>
                         </td>
 
-                        {/* Actions */}
+                        {/* 5. Created */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                           <div className="text-xs opacity-60 flex items-center gap-1.5" style={{ color: themeColors.text }}>
+                             <FaClock size={11} className="opacity-50" />
+                             {fmtDateTime(e.createdAt)}
+                           </div>
+                        </td>
+
+                        {/* 6. Actions */}
                         <td className="px-6 py-4 text-center">
                           <button
                             type="button"
@@ -543,10 +558,10 @@ export default function Enquiries() {
                  <div className="grid grid-cols-1 gap-4">
                    {selected.email && (
                      <div className="flex items-center gap-3">
-                       <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm"><FaEnvelope size={14} /></div>
-                       <div>
+                       <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm shrink-0"><FaEnvelope size={14} /></div>
+                       <div className="flex-1 min-w-0">
                          <p className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Email Address</p>
-                         <p className="text-sm font-bold text-slate-700" style={{ color: themeColors.text }}>{selected.email}</p>
+                         <p className="text-sm font-bold text-slate-700 break-all" style={{ color: themeColors.text }}>{selected.email}</p>
                        </div>
                      </div>
                    )}

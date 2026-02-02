@@ -13,13 +13,6 @@ import {
   FaClock
 } from "react-icons/fa";
 
-const fmtDateTime = (iso) =>
-  iso
-    ? new Date(iso).toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      })
-    : "-";
 
 const fmtCurrency = (n) =>
   typeof n === "number"
@@ -84,14 +77,6 @@ export default function Transactions() {
     });
   }, [transactions, search, statusFilter]);
 
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case "success": return <FaCheckCircle className="text-green-500" />;
-      case "failed": return <FaTimesCircle className="text-red-500" />;
-      case "pending": return <FaClock className="text-yellow-500" />;
-      default: return <FaClock className="text-gray-400" />;
-    }
-  };
 
   const statusBadgeStyle = (status) => {
     const base = {
@@ -269,19 +254,20 @@ export default function Transactions() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr style={{ backgroundColor: themeColors.background + "40" }}>
+              <tr className="border-b" style={{ backgroundColor: themeColors.background + "50" }}>
                 {[
                   "Transaction ID",
-                  "Customer Details",
+                  "Customer",
                   "Amount",
-                  "Method",
+                  "Gateway",
                   "Status",
-                  "Description/Order",
+                  "Details",
                   "Date & Time",
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-6 py-4 text-[11px] font-black uppercase tracking-widest text-gray-500"
+                    className="px-4 py-3 text-[11px] font-bold uppercase tracking-widest"
+                    style={{ color: themeColors.text }}
                   >
                     {h}
                   </th>
@@ -306,66 +292,54 @@ export default function Transactions() {
                 </tr>
               ) : (
                 filteredTransactions.map((t) => (
-                  <tr key={t._id} className="hover:bg-gray-50/50 transition-colors">
-                    {/* ID */}
-                    <td className="px-6 py-4">
-                      <div className="font-mono text-xs font-bold text-blue-600 uppercase">
-                        {t.transactionId || "TXN-"+t._id.slice(-6)}
+                  <tr key={t._id} className="hover:bg-slate-50/50 transition-colors group" style={{ borderBottom: `1px solid ${themeColors.border}40` }}>
+                    <td className="px-4 py-4">
+                      <div className="font-mono text-[10px] bg-slate-100 px-2 py-1 rounded w-fit opacity-70 group-hover:opacity-100 transition-opacity" title={t.transactionId}>
+                        #{ (t.transactionId || t._id).slice(-8).toUpperCase() }
                       </div>
                     </td>
-
-                    {/* Customer */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-gray-800">
+                    <td className="px-4 py-4">
+                      <div className="text-sm font-bold" style={{ color: themeColors.text }}>
                         {t.userId?.name || "Guest User"}
                       </div>
-                      <div className="text-[11px] text-gray-500">
+                      <div className="text-[10px] opacity-50" style={{ color: themeColors.text }}>
                         {t.userId?.email || "-"}
                       </div>
                     </td>
-
-                    {/* Amount */}
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-black text-gray-800">
+                    <td className="px-4 py-4">
+                      <div className="text-sm font-black" style={{ color: themeColors.text }}>
                         {fmtCurrency(t.amount)}
                       </div>
                     </td>
-
-                    {/* Method */}
-                    <td className="px-6 py-4">
-                      <div className="text-xs font-bold flex items-center gap-2 text-gray-600">
-                        <div className="w-2 h-2 rounded-full bg-blue-400" />
-                        {t.paymentMethod}
+                    <td className="px-4 py-4">
+                      <div className="text-[10px] font-bold uppercase tracking-tight opacity-70 mb-1" style={{ color: themeColors.text }}>
+                        {t.paymentMethod || "COD"}
                       </div>
-                      <div className="text-[10px] text-gray-400 uppercase font-bold tracking-tighter">
-                        via {t.paymentGateway || "Razorpay"}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-6 py-4">
-                      <span style={statusBadgeStyle(t.status)}>
-                        {getStatusIcon(t.status)}
-                        {t.status}
+                      <span className="inline-flex px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-slate-100 text-slate-500">
+                        {t.paymentGateway || "N/A"}
                       </span>
                     </td>
-
-                    {/* Description */}
-                    <td className="px-6 py-4">
-                      <div className="text-[11px] font-medium text-gray-600 max-w-[200px] line-clamp-2">
+                    <td className="px-4 py-4">
+                      <div style={statusBadgeStyle(t.status || "pending")} className="uppercase tracking-widest text-[9px] px-3 py-1 font-black">
+                        {t.status || "pending"}
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="text-[11px] opacity-70 truncate max-w-[150px]" style={{ color: themeColors.text }}>
                         {t.description || "Website Purchase"}
                       </div>
                       {t.orderId && (
-                        <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
-                          Order: {t.orderId?._id || t.orderId}
+                        <div className="text-[9px] font-bold text-blue-500 uppercase mt-0.5">
+                          ORD: { (t.orderId?._id || t.orderId).slice(-6).toUpperCase() }
                         </div>
                       )}
                     </td>
-
-                    {/* Date */}
-                    <td className="px-6 py-4">
-                      <div className="text-xs font-medium text-gray-800">
-                        {fmtDateTime(t.createdAt)}
+                    <td className="px-4 py-4">
+                      <div className="text-[10px] font-bold" style={{ color: themeColors.text }}>
+                        {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                      </div>
+                      <div className="text-[9px] opacity-50 uppercase tracking-tighter">
+                        {new Date(t.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
                   </tr>

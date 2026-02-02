@@ -458,23 +458,16 @@ export default function Offers() {
           <table className="w-full text-sm">
             <thead>
               <tr
+                className="border-b"
                 style={{
-                  backgroundColor: themeColors.background + "30",
+                  backgroundColor: themeColors.background + "50",
+                  borderColor: themeColors.border,
                 }}
               >
-                {[
-                  "Code",
-                  "Title",
-                  "Type",
-                  "Value",
-                  "Limits",
-                  "Status",
-                  "Created",
-                  "Actions",
-                ].map((h) => (
+                {["Coupon", "Discount", "Limits & Info", "Status", "Created", "Actions"].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+                    className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
                     style={{ color: themeColors.text }}
                   >
                     {h}
@@ -507,121 +500,81 @@ export default function Offers() {
                   </td>
                 </tr>
               ) : (
-                filteredOffers.map((o) => (
-                  <tr key={o._id || o.id}>
-                    <td
-                      className="px-4 py-2 font-mono text-xs"
-                      style={{ color: themeColors.text }}
+                filteredOffers.map((o) => {
+                  const id = o._id || o.id;
+                  return (
+                    <tr 
+                      key={id}
+                      className="hover:bg-slate-50/50 transition-colors group"
+                      style={{ borderBottom: `1px solid ${themeColors.border}40` }}
                     >
-                      {o.code}
-                    </td>
-                    <td
-                      className="px-4 py-2"
-                      style={{ color: themeColors.text }}
-                    >
-                      {o.title}
-                      {o.description && (
-                        <div className="text-xs opacity-70">
-                          {o.description}
+                      <td className="px-4 py-4">
+                        <div className="font-mono text-[11px] bg-slate-100 px-2 py-1 rounded w-fit font-bold mb-1" style={{ color: themeColors.text }}>
+                          {o.code}
                         </div>
-                      )}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {o.discountType === "percentage"
-                        ? "Percentage"
-                        : "Flat"}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {o.discountType === "percentage"
-                        ? `${o.discountValue}%`
-                        : fmtCurrency(o.discountValue)}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      <div>
-                        Min Order:{" "}
-                        {o.minOrderAmount
-                          ? fmtCurrency(o.minOrderAmount)
-                          : "-"}
-                      </div>
-                      <div>
-                        Max Discount:{" "}
-                        {o.maxDiscountAmount
-                          ? fmtCurrency(o.maxDiscountAmount)
-                          : "-"}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"
-                        style={{
-                          backgroundColor: o.isActive
-                            ? (themeColors.success ||
-                                themeColors.primary) + "15"
-                            : themeColors.border,
-                          color: o.isActive
-                            ? themeColors.success ||
-                              themeColors.primary
-                            : themeColors.text,
-                        }}
-                      >
-                        {o.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {o.createdAt ? fmtDate(o.createdAt) : "-"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(o)}
-                          disabled={!isLoggedIn}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.text,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? "Edit"
-                              : "Login as admin to edit"
-                          }
+                        <div className="text-sm font-bold" style={{ color: themeColors.text }}>{o.title}</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                           <div className="text-lg font-black" style={{ color: themeColors.text }}>
+                              {o.discountType === "percentage" ? `${o.discountValue}%` : fmtCurrency(o.discountValue)}
+                           </div>
+                           <span className="text-[9px] font-black uppercase tracking-tighter opacity-50 px-1.5 py-0.5 bg-slate-50 rounded border border-slate-100">
+                             {o.discountType}
+                           </span>
+                        </div>
+                        {o.description && <div className="text-[10px] opacity-60 truncate max-w-[150px]">{o.description}</div>}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col gap-0.5">
+                           <div className="text-[10px] font-medium" style={{ color: themeColors.text }}>
+                             Min Order: <span className="font-bold">{o.minOrderAmount ? fmtCurrency(o.minOrderAmount) : "None"}</span>
+                           </div>
+                           <div className="text-[10px] font-medium" style={{ color: themeColors.text }}>
+                             Max Cap: <span className="font-bold">{o.maxDiscountAmount ? fmtCurrency(o.maxDiscountAmount) : "No Limit"}</span>
+                           </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                            o.isActive 
+                              ? "bg-emerald-100 text-emerald-700" 
+                              : "bg-slate-100 text-slate-500"
+                          }`}
                         >
-                          <FaEdit />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(o)}
-                          disabled={!isLoggedIn || saving}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.danger,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? "Delete"
-                              : "Login as admin to delete"
-                          }
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {o.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-xs font-bold" style={{ color: themeColors.text }}>
+                          {o.createdAt ? fmtDate(o.createdAt) : "-"}
+                        </div>
+                        <div className="text-[10px] opacity-50 uppercase tracking-tighter">Created On</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleEdit(o)}
+                            disabled={!isLoggedIn}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30"
+                            title="Edit"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(o)}
+                            disabled={!isLoggedIn || saving}
+                            className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-30"
+                            title="Delete"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

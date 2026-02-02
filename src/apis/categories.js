@@ -3,9 +3,10 @@ import http from "./http";
 
 // Public Get – GET {{baseUrl}}/api/categories
 export const getCategories = async () => {
-  const { data } = await http.get("/api/categories");
+  const { data } = await http.get("/api/categories?all=true");
   return data; // expect: array of categories
 };
+
 
 // Admin Add – POST {{baseUrl}}/api/categories (Token via interceptor)
 export const createCategory = async (payload) => {

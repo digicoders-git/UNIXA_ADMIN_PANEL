@@ -24,16 +24,8 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 // ---------- helpers ----------
-const fmtNum = (n) =>
-  typeof n === "number" ? n.toLocaleString("en-IN") : n ?? "-";
-
 const fmtDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString("en-IN") : "-";
-
-const fmtCurrency = (n) =>
-  typeof n === "number"
-    ? `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
-    : n ?? "-";
 
 const emptyForm = {
   name: "",
@@ -478,15 +470,17 @@ export default function Categories() {
           <table className="w-full text-sm">
             <thead>
               <tr
+                className="border-b"
                 style={{
-                  backgroundColor: themeColors.background + "30",
+                  backgroundColor: themeColors.background + "50",
+                  borderColor: themeColors.border,
                 }}
               >
-                {["Image", "Name", "Slug", "Description", "Status", "Created", "Actions"].map(
+                {["Category", "Slug & Desc", "Status", "Created", "Actions"].map(
                   (h) => (
                     <th
                       key={h}
-                      className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest"
                       style={{ color: themeColors.text }}
                     >
                       {h}
@@ -520,128 +514,75 @@ export default function Categories() {
                   </td>
                 </tr>
               ) : (
-                filteredCategories.map((cat) => (
-                  <tr key={cat._id || cat.id || cat.slug}>
-                    <td className="px-4 py-2">
-                       {cat.image?.url ? (
-                         <img 
-                           src={cat.image.url} 
-                           alt={cat.name} 
-                           className="w-10 h-10 object-cover rounded-lg border shadow-sm"
-                           style={{ borderColor: themeColors.border }}
-                         />
-                       ) : (
-                         <div 
-                           className="w-10 h-10 rounded-lg border flex items-center justify-center text-xs opacity-50"
-                           style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}
-                         >
-                           No img
-                         </div>
-                       )}
-                    </td>
-                    <td
-                      className="px-4 py-2"
-                      style={{ color: themeColors.text }}
+                  filteredCategories.map((cat) => {
+                  const id = cat._id || cat.id || cat.slug;
+                  return (
+                    <tr 
+                      key={id}
+                      className="hover:bg-slate-50/50 transition-colors group"
+                      style={{ borderBottom: `1px solid ${themeColors.border}40` }}
                     >
-                      {cat.name}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {cat.slug || "-"}
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {cat.description || "-"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <span
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"
-                        style={{
-                          backgroundColor: cat.isActive
-                            ? (themeColors.success ||
-                                themeColors.primary) + "15"
-                            : themeColors.border,
-                          color: cat.isActive
-                            ? themeColors.success ||
-                              themeColors.primary
-                            : themeColors.text,
-                        }}
-                      >
-                        {cat.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td
-                      className="px-4 py-2 text-xs"
-                      style={{ color: themeColors.text }}
-                    >
-                      {cat.createdAt ? fmtDate(cat.createdAt) : "-"}
-                    </td>
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2">
-                        {/* Active/Inactive Toggle Button */}
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          {cat.image?.url ? (
+                            <img 
+                              src={cat.image.url} 
+                              alt={cat.name} 
+                              className="w-10 h-10 object-cover rounded-lg bg-slate-50 border border-slate-100 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400 flex-shrink-0">
+                               <FaBox size={14} />
+                            </div>
+                          )}
+                          <div className="font-bold text-sm" style={{ color: themeColors.text }}>{cat.name}</div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-[10px] font-mono opacity-50 uppercase tracking-tighter">{cat.slug || "no-slug"}</div>
+                        <div className="text-[11px] opacity-70 truncate max-w-[150px]" style={{ color: themeColors.text }}>{cat.description || "-"}</div>
+                      </td>
+                      <td className="px-4 py-4">
                         <button
-                          type="button"
                           onClick={() => handleToggleStatus(cat)}
-                          disabled={!isLoggedIn || saving}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: cat.isActive
-                              ? themeColors.warning || "#f59e0b"
-                              : themeColors.success || themeColors.primary,
-                          }}
-                          title={
-                            isLoggedIn
-                              ? cat.isActive
-                                ? "Mark as Inactive"
-                                : "Mark as Active"
-                              : "Login as admin to change status"
-                          }
+                          className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                            cat.isActive 
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" 
+                              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                          }`}
                         >
-                          {cat.isActive ? <FaToggleOn /> : <FaToggleOff />}
+                          {cat.isActive ? "Active" : "Inactive"}
                         </button>
-
-                        {/* Edit Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(cat)}
-                          disabled={!isLoggedIn}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.text,
-                          }}
-                          title={
-                            isLoggedIn ? "Edit" : "Login as admin to edit"
-                          }
-                        >
-                          <FaEdit />
-                        </button>
-
-                        {/* Delete Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(cat)}
-                          disabled={!isLoggedIn || saving}
-                          className="p-2 rounded-lg border text-xs disabled:opacity-40"
-                          style={{
-                            borderColor: themeColors.border,
-                            color: themeColors.danger,
-                          }}
-                          title={
-                            isLoggedIn ? "Delete" : "Login as admin to delete"
-                          }
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="text-xs font-bold" style={{ color: themeColors.text }}>
+                          {cat.createdAt ? fmtDate(cat.createdAt) : "-"}
+                        </div>
+                        <div className="text-[10px] opacity-50 uppercase tracking-tighter">Listed On</div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleEdit(cat)}
+                            disabled={!isLoggedIn}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors disabled:opacity-30"
+                            title="Edit"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat)}
+                            disabled={!isLoggedIn || saving}
+                            className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-30"
+                            title="Delete"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
