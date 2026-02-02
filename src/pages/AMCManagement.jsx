@@ -27,7 +27,7 @@ export default function AMCManagement() {
   const [data, setData] = useState({ stats: {}, customers: [] });
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
-
+  
   // Modals
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
