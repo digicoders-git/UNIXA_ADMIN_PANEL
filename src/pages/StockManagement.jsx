@@ -36,10 +36,6 @@ export default function StockManagement() {
   });
   const [historyLogs, setHistoryLogs] = useState([]);
 
-  useEffect(() => {
-    fetchData();
-  }, [statusFilter]);
-
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -52,12 +48,20 @@ export default function StockManagement() {
     }
   };
 
+  // Debounce Search & Filter
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchData();
+    }, 500); // 500ms delay for typing
+
+    return () => clearTimeout(handler);
+  }, [search, statusFilter]);
+
   const handleSearch = (e) => {
       setSearch(e.target.value);
-      // Debounce could be added here, but for now direct call or Effect dependency if search is crucial real-time
   };
   
-  // Trigger search on enter or button click
+  // Manual trigger if needed (e.g. Enter key immediate)
   const triggerSearch = () => {
       fetchData();
   };

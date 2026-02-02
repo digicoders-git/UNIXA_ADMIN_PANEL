@@ -1,7 +1,13 @@
 import http from "./http";
 
 export const getAssets = async (filters = {}) => {
-  const query = new URLSearchParams(filters).toString();
+  const cleanFilters = {};
+  Object.keys(filters).forEach(key => {
+      if (filters[key] != null && filters[key] !== "") {
+          cleanFilters[key] = filters[key];
+      }
+  });
+  const query = new URLSearchParams(cleanFilters).toString();
   const response = await http.get(`/api/employee-assets?${query}`);
   return response.data;
 };
