@@ -15,6 +15,7 @@ import {
   FaBell,
   FaUndo,
   FaDolly,
+  FaWrench,
 } from "react-icons/fa";
 
 // pages
@@ -36,11 +37,13 @@ const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
 const Notifications = lazy(() => import("../pages/Notifications"));
 const Refunds = lazy(() => import("../pages/Refunds"));
 const StockManagement = lazy(() => import("../pages/StockManagement"));
+const ROParts = lazy(() => import("../pages/ROParts"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
   { path: "/categories", component: Categories, name: "Categories", icon: FaBox },
   { path: "/products", component: Products, name: "Products", icon: FaBox },
+  { path: "/ro-parts", component: ROParts, name: "RO Parts", icon: FaWrench },
   { path: "/stock", component: StockManagement, name: "Stock Management", icon: FaDolly },
   { path: "/offers", component: Offers, name: "Offers", icon: FaCoins },
   { path: "/orders", component: Orders, name: "Orders", icon: FaShoppingCart },
