@@ -43,6 +43,7 @@ const fmtDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString("en-IN") : "-";
 
 const emptyForm = {
+  p_id: "",
   name: "",
   price: "",
   discountPercent: "",
@@ -316,6 +317,7 @@ export default function Products() {
   const handleEdit = (prod) => {
     setEditing(prod);
     setForm({
+      p_id: prod.p_id || "",
       name: prod.name || "",
       price:
         typeof prod.price === "number"
@@ -406,6 +408,7 @@ export default function Products() {
 
   const buildFormData = () => {
     const fd = new FormData();
+    fd.append("p_id", form.p_id.trim());
     fd.append("name", form.name.trim());
     fd.append("price", form.price.trim());
 
@@ -760,6 +763,8 @@ export default function Products() {
       p.offerId || (typeof p.offer === "object" ? p.offer?._id : p.offer);
 
     const { finalPrice } = calculateFinalPrice(productPrice, productDisc, oId);
+    // Fallback: If calculated price is 0 (likely error/invalid offer) but backend stored a valid price, usage it.
+    if (finalPrice <= 0 && p.finalPrice > 0) return p.finalPrice;
     return finalPrice;
   };
 
@@ -1421,6 +1426,32 @@ export default function Products() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Product ID (P ID) */}
+                 <div>
+                  <label
+                    htmlFor="p_id"
+                    className="block mb-1 text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
+                    Product ID (P ID) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="p_id"
+                    name="p_id"
+                    type="text"
+                    value={form.p_id}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                    placeholder="e.g. 93101"
+                  />
+                </div>
+
                 {/* Name */}
                 <div>
                   <label

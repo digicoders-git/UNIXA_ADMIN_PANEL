@@ -25,6 +25,7 @@ import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
 const emptyForm = {
+  p_id: "",
   name: "",
   price: "",
   discountPercent: "0",
@@ -104,6 +105,7 @@ export default function ROParts() {
   const handleEdit = (part) => {
     setEditing(part);
     setForm({
+      p_id: part.p_id || "",
       name: part.name || "",
       price: String(part.price || ""),
       discountPercent: String(part.discountPercent || "0"),
@@ -119,6 +121,7 @@ export default function ROParts() {
 
   const buildFormData = () => {
     const fd = new FormData();
+    fd.append("p_id", form.p_id);
     fd.append("name", form.name);
     fd.append("price", form.price);
     fd.append("discountPercent", form.discountPercent);
@@ -306,6 +309,14 @@ export default function ROParts() {
             <form onSubmit={handleSubmit} className="p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part P ID *</label>
+                  <input
+                    type="text" required value={form.p_id} name="p_id" onChange={handleChange}
+                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
+                    placeholder="e.g. 93101"
+                  />
+                </div>
+                <div className="col-span-2">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Name *</label>
                   <input
                     type="text" required value={form.name} name="name" onChange={handleChange}
@@ -345,7 +356,7 @@ export default function ROParts() {
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Discount (%)</label>
                   <input
-                    type="number" value={form.discountPercent} name="discountPercent" onChange={handleChange}
+                    type="number" min="0" max="100" value={form.discountPercent} name="discountPercent" onChange={handleChange}
                     className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
                   />
                 </div>
