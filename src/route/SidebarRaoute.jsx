@@ -32,7 +32,8 @@ const ChangePassword = lazy(() => import("../pages/ChangePassword"));
 const Employees = lazy(() => import("../pages/Employees"));
 const Customers = lazy(() => import("../pages/Customers"));
 const AMCManagement = lazy(() => import("../pages/AMCManagement"));
-const AmcPlans = lazy(() => import("../pages/AmcPlans")); // Added
+const AmcPlans = lazy(() => import("../pages/AmcPlans"));
+const ServiceRequests = lazy(() => import("../pages/ServiceRequests")); // Added
 const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
 const Notifications = lazy(() => import("../pages/Notifications"));
 const Refunds = lazy(() => import("../pages/Refunds"));
@@ -58,6 +59,7 @@ const routes = [
   { path: "/customers", component: Customers, name: "Customers", icon: FaUsers },
   { path: "/amc", component: AMCManagement, name: "AMC Management", icon: FaShieldAlt },
   { path: "/amc-plans", component: AmcPlans, name: "Master Plans", icon: FaShieldAlt }, // Added
+  { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench }, // Added
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },
   { path: "/refunds", component: Refunds, name: "Refund Requests", icon: FaUndo },
   { path: "/change-password", component: ChangePassword, name: "Change Password", icon: FaKey },
