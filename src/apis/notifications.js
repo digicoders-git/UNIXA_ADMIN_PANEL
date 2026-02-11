@@ -14,3 +14,13 @@ export const deleteNotification = async (id) => {
   const response = await http.delete(`/api/notifications/${id}`);
   return response.data;
 };
+
+export const getAdminNotifications = async () => {
+    const response = await http.get("/api/notifications/admin/unread");
+    return response.data;
+};
+
+export const markAdminRead = async () => {
+    const response = await http.put("/api/notifications/admin/mark-read");
+    return response.data;
+};

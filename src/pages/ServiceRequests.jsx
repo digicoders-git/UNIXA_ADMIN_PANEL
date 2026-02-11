@@ -62,13 +62,22 @@ export default function ServiceRequests() {
 
   const handleUpdateSubmit = async (e) => {
       e.preventDefault();
+      const id = selectedRequest.ticketId || selectedRequest.complaintId;
+      console.log("Updating request with solid ID:", id);
+
+      if (!id) {
+          Swal.fire("Error", "Ticket ID is missing. Please refresh and try again.", "error");
+          return;
+      }
+
       try {
-          await updateServiceRequest(selectedRequest.ticketId, updateForm);
+          await updateServiceRequest(id, updateForm);
           Swal.fire("Success", "Request updated successfully", "success");
           setIsModalOpen(false);
           fetchRequests();
       } catch (err) {
-          Swal.fire("Error", "Failed to update request", "error");
+          console.error("Update failed:", err);
+          Swal.fire("Error", "Failed to update request: " + (err.response?.data?.message || "Server Error"), "error");
       }
   };
 
@@ -218,7 +227,7 @@ export default function ServiceRequests() {
                   style={{ backgroundColor: themeColors.surface, color: themeColors.text }}
               >
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-3" style={{ borderColor: themeColors.border }}>
-                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.ticketId}
+                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.ticketId || selectedRequest.complaintId}
                   </h2>
                   
                   <form onSubmit={handleUpdateSubmit} className="space-y-4">

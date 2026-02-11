@@ -3,7 +3,7 @@ import { memo, useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { getNotifications } from "../apis/notifications";
+import { getAdminNotifications, markAdminRead } from "../apis/notifications";
 import { 
   FaCog, 
   FaSun, 
@@ -19,7 +19,10 @@ import {
   FaCheckCircle,
   FaExclamationTriangle,
   FaExclamationCircle,
-  FaInfoCircle
+  FaInfoCircle,
+  FaEnvelope,
+  FaTools,
+  FaShoppingCart
 } from "react-icons/fa";
 
 const SettingsModal = ({
@@ -301,19 +304,33 @@ const Header = memo(({
 
   const fetchNotifications = async () => {
     try {
-        const res = await getNotifications();
+        const res = await getAdminNotifications();
         setNotifications(res || []);
     } catch (err) {
-        console.error("Failed to fetch notifications:", err);
+        console.error("Failed to fetch admin notifications:", err);
     }
   };
 
+  const handleMarkAllRead = async () => {
+    try {
+        await markAdminRead();
+        setNotifications([]);
+    } catch (err) {
+        console.error("Failed to mark read:", err);
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, []);
+
   const getIcon = (type) => {
       switch(type) {
-          case 'Success': return <FaCheckCircle className="text-green-500" />;
-          case 'Warning': return <FaExclamationTriangle className="text-yellow-500" />;
-          case 'Alert': return <FaExclamationCircle className="text-red-500" />;
-          default: return <FaInfoCircle className="text-blue-500" />;
+          case 'Enquiry': return <FaEnvelope className="text-blue-500" />;
+          case 'ServiceRequest': return <FaTools className="text-orange-500" />;
+          case 'Order': return <FaShoppingCart className="text-green-500" />;
+          default: return <FaExclamationCircle className="text-red-500" />;
       }
   };
 
@@ -382,26 +399,45 @@ const Header = memo(({
                     }}
                   >
                       <div className="p-3 border-b flex justify-between items-center" style={{ borderColor: themeColors.border }}>
-                          <h3 className="font-semibold text-sm">Notifications</h3>
-                          <span className="text-xs opacity-60 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">{notifications.length} New</span>
+                          <h3 className="font-semibold text-sm">Admin Alerts</h3>
+                          <div className="flex items-center gap-2">
+                              <span className="text-[10px] opacity-60 bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{notifications.length} New</span>
+                              {notifications.length > 0 && (
+                                  <button 
+                                    onClick={handleMarkAllRead}
+                                    className="text-[10px] text-blue-500 hover:underline"
+                                  >
+                                      Clear All
+                                  </button>
+                              )}
+                          </div>
                       </div>
                       
                       <div className="max-h-80 overflow-y-auto">
                           {notifications.length === 0 ? (
-                              <div className="p-8 text-center opacity-50 text-xs">
-                                  No new notifications
+                              <div className="p-10 text-center opacity-50 flex flex-col items-center gap-2">
+                                  <FaBell size={24} className="opacity-20" />
+                                  <p className="text-xs">No new alerts for you</p>
                               </div>
                           ) : (
                               <div className="divide-y" style={{ borderColor: themeColors.border }}>
-                                  {notifications.slice(0, 5).map(notif => (
-                                      <div key={notif._id} className="p-3 hover:bg-black/5 transition flex gap-3 items-start">
-                                          <div className="mt-1 flex-shrink-0 text-lg">
+                                  {notifications.map(notif => (
+                                      <div 
+                                        key={notif._id} 
+                                        onClick={() => {
+                                            setIsNotifOpen(false);
+                                            if (notif.type === 'Enquiry') navigate('/enquiries');
+                                            if (notif.type === 'ServiceRequest') navigate('/service-requests');
+                                        }}
+                                        className="p-3 hover:bg-black/5 transition flex gap-3 items-start cursor-pointer group"
+                                      >
+                                          <div className="mt-1 flex-shrink-0 text-base group-hover:scale-110 transition-transform">
                                               {getIcon(notif.type)}
                                           </div>
-                                          <div>
-                                              <p className="text-sm font-bold line-clamp-1">{notif.title}</p>
-                                              <p className="text-xs opacity-70 line-clamp-2 mt-0.5">{notif.message}</p>
-                                              <p className="text-[10px] opacity-40 mt-1">{new Date(notif.sentAt).toLocaleString()}</p>
+                                          <div className="min-w-0 flex-1">
+                                              <p className="text-xs font-bold line-clamp-1">{notif.title}</p>
+                                              <p className="text-[11px] opacity-70 line-clamp-2 mt-0.5 leading-relaxed">{notif.message}</p>
+                                              <p className="text-[9px] opacity-40 mt-1">{new Date(notif.createdAt || notif.sentAt).toLocaleString()}</p>
                                           </div>
                                       </div>
                                   ))}
@@ -413,11 +449,11 @@ const Header = memo(({
                           <button 
                             onClick={()=>{
                                 setIsNotifOpen(false);
-                                navigate('/notifications');
+                                navigate('/enquiries');
                             }}
-                            className="text-xs text-blue-500 hover:underline font-medium"
+                            className="text-[11px] text-blue-500 hover:underline font-bold"
                           >
-                              View All Notifications
+                              Go to Inbox
                           </button>
                       </div>
                   </div>

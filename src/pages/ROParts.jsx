@@ -9,6 +9,8 @@ import {
   deleteRoPart,
 } from "../apis/roParts";
 import { getCategories } from "../apis/categories";
+import { listAmcPlans } from "../apis/amcPlans";
+import { FaCheck } from "react-icons/fa";
 import {
   FaWrench,
   FaPlus,
@@ -32,6 +34,7 @@ const emptyForm = {
   description: "",
   categoryId: "",
   isActive: true,
+  amcPlans: [],
 };
 
 export default function ROParts() {
@@ -43,6 +46,7 @@ export default function ROParts() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [allAmcPlans, setAllAmcPlans] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
@@ -56,12 +60,14 @@ export default function ROParts() {
     try {
       setLoading(true);
       setError("");
-      const [partsList, catsData] = await Promise.all([
+      const [partsList, catsData, amcPlansData] = await Promise.all([
         listRoParts(),
-        getCategories()
+        getCategories(),
+        listAmcPlans(true),
       ]);
       setRoParts(partsList);
       setCategories(Array.isArray(catsData) ? catsData : catsData.categories || []);
+      setAllAmcPlans(amcPlansData || []);
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Failed to load data.");
     } finally {
@@ -94,6 +100,17 @@ export default function ROParts() {
     }));
   };
 
+  const toggleAmcPlan = (planId) => {
+    setForm(prev => {
+      const exists = prev.amcPlans.includes(planId);
+      if (exists) {
+        return { ...prev, amcPlans: prev.amcPlans.filter(id => id !== planId) };
+      } else {
+        return { ...prev, amcPlans: [...prev.amcPlans, planId] };
+      }
+    });
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -112,6 +129,7 @@ export default function ROParts() {
       description: part.description || "",
       categoryId: part.category?._id || part.category || "",
       isActive: part.isActive ?? true,
+      amcPlans: Array.isArray(part.amcPlans) ? part.amcPlans.map(a => a._id || a) : [],
     });
     setImagePreview(part.mainImage?.url || "");
     setImageFile(null);
@@ -128,6 +146,9 @@ export default function ROParts() {
     fd.append("description", form.description);
     fd.append("categoryId", form.categoryId);
     fd.append("isActive", String(form.isActive));
+    if (form.amcPlans && form.amcPlans.length) {
+      fd.append("amcPlans", JSON.stringify(form.amcPlans));
+    }
     if (imageFile) fd.append("mainImage", imageFile);
     return fd;
   };
@@ -244,6 +265,7 @@ export default function ROParts() {
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Category</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Pricing</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Status</th>
+              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">AMC Plans</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60 text-right">Actions</th>
             </tr>
           </thead>
@@ -281,6 +303,19 @@ export default function ROParts() {
                       <div className={`w-1.5 h-1.5 rounded-full ${part.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                       {part.isActive ? 'Active' : 'Inactive'}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1 max-w-[150px]">
+                      {part.amcPlans?.length > 0 ? (
+                        part.amcPlans.map((p, idx) => (
+                          <span key={idx} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded border border-indigo-100">
+                             {typeof p === 'object' ? p.name : allAmcPlans.find(ap => ap._id === p)?.name || 'Plan'}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-slate-300 italic">None</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
@@ -385,6 +420,36 @@ export default function ROParts() {
                     className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-sm"
                     placeholder="Brief details..."
                   />
+                </div>
+                {/* AMC Plans Selection */}
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Applicable AMC Plans</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {allAmcPlans.map((plan) => (
+                      <div
+                        key={plan._id}
+                        onClick={() => toggleAmcPlan(plan._id)}
+                        className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                          form.amcPlans.includes(plan._id)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-200"
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-[11px] font-semibold">{plan.name}</span>
+                          <span className="text-[10px] opacity-60">₹{plan.price} / {plan.durationMonths}m</span>
+                        </div>
+                        {form.amcPlans.includes(plan._id) ? (
+                          <FaCheck className="text-blue-500 text-[10px]" />
+                        ) : (
+                          <div className="w-3 h-3 rounded-full border border-gray-300" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {allAmcPlans.length === 0 && (
+                     <p className="text-[10px] opacity-50 italic">No AMC plans found.</p>
+                  )}
                 </div>
               </div>
 

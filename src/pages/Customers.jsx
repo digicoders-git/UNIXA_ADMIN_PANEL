@@ -64,6 +64,16 @@ const emptyForm = {
     paymentMode: "Cash",
     paymentStatus: "Pending",
   },
+  rentalDetails: {
+    planId: null,
+    planName: "",
+    machineModel: "",
+    amount: 0,
+    status: "Inactive",
+    paymentStatus: "Due",
+    startDate: "",
+    nextDueDate: ""
+  }
 };
 
 export default function Customers() {
@@ -144,6 +154,7 @@ export default function Customers() {
       address: cust.address || emptyForm.address,
       purifiers: cust.purifiers?.length ? cust.purifiers : emptyForm.purifiers,
       amcDetails: cust.amcDetails || emptyForm.amcDetails,
+      rentalDetails: cust.rentalDetails || emptyForm.rentalDetails,
     });
     setActiveTab("basic");
     setIsModalOpen(true);
@@ -173,6 +184,14 @@ export default function Customers() {
     setForm(prev => ({
         ...prev,
         amcDetails: { ...prev.amcDetails, [name]: value }
+    }));
+  };
+
+  const handleRentalChange = (e) => {
+    const { name, value } = e.target;
+    setForm(prev => ({
+        ...prev,
+        rentalDetails: { ...prev.rentalDetails, [name]: value }
     }));
   };
 
@@ -370,12 +389,17 @@ export default function Customers() {
                          )}
                       </td>
                       <td className="p-4">
-                         <div className="flex flex-col gap-1 items-start">
+                          <div className="flex flex-col gap-1 items-start">
                              <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest ${
                                  cust.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                              }`}>
                                  {cust.status}
                              </span>
+                             {cust.rentalDetails?.status === 'Pending' && (
+                                 <span className="animate-pulse px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700">
+                                     Rental Request
+                                 </span>
+                             )}
                              <span className="text-[10px] font-bold opacity-60 px-2 py-0.5 bg-slate-100 rounded mt-0.5">{cust.type}</span>
                          </div>
                       </td>
@@ -443,7 +467,7 @@ export default function Customers() {
 
             {/* Tabs */}
             <div className="flex border-b" style={{ borderColor: themeColors.border }}>
-                {['basic', 'purifier', 'amc'].map(tab => (
+                {['basic', 'purifier', 'amc', 'rental'].map(tab => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}
@@ -451,7 +475,7 @@ export default function Customers() {
                             activeTab === tab ? 'border-blue-500 text-blue-500' : 'border-transparent opacity-60 hover:opacity-100'
                         }`}
                     >
-                        {tab.charAt(0).toUpperCase() + tab.slice(1)} Details
+                        {tab === 'rental' ? 'Rental Info' : tab.charAt(0).toUpperCase() + tab.slice(1) + ' Details'}
                     </button>
                 ))}
             </div>
@@ -573,6 +597,54 @@ export default function Customers() {
                         </div>
                     </div>
                 )}
+
+                {activeTab === 'rental' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="col-span-2 p-3 bg-amber-50 rounded text-xs text-amber-800 border border-amber-100">
+                            <strong>Note:</strong> Set status to <strong>Active</strong> to make it visible as a subscription in user panel.
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Rental Plan Name</label>
+                            <input type="text" name="planName" value={form.rentalDetails.planName} onChange={handleRentalChange} className="w-full p-2 rounded border" placeholder="e.g. Basic RO Rental" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Machine Model</label>
+                            <input type="text" name="machineModel" value={form.rentalDetails.machineModel} onChange={handleRentalChange} className="w-full p-2 rounded border" placeholder="e.g. Kent Grand+" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Monthly Rent</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2 opacity-50">₹</span>
+                                <input type="number" name="amount" value={form.rentalDetails.amount} onChange={handleRentalChange} className="w-full pl-8 p-2 rounded border" />
+                            </div>
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium mb-1">Status</label>
+                             <select name="status" value={form.rentalDetails.status} onChange={handleRentalChange} className="w-full p-2 rounded border">
+                                 <option value="Inactive">Inactive</option>
+                                 <option value="Pending">Pending (Requested)</option>
+                                 <option value="Active">Active</option>
+                                 <option value="Cancelled">Cancelled</option>
+                             </select>
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium mb-1">Start Date</label>
+                             <input type="date" name="startDate" value={form.rentalDetails.startDate ? form.rentalDetails.startDate.split('T')[0] : ''} onChange={handleRentalChange} className="w-full p-2 rounded border" />
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium mb-1">Next Payment Due</label>
+                             <input type="date" name="nextDueDate" value={form.rentalDetails.nextDueDate ? form.rentalDetails.nextDueDate.split('T')[0] : ''} onChange={handleRentalChange} className="w-full p-2 rounded border" />
+                        </div>
+                        <div>
+                             <label className="block text-sm font-medium mb-1">Payment Status</label>
+                             <select name="paymentStatus" value={form.rentalDetails.paymentStatus} onChange={handleRentalChange} className="w-full p-2 rounded border">
+                                 <option value="Paid">Paid</option>
+                                 <option value="Due">Due</option>
+                                 <option value="Overdue">Overdue</option>
+                             </select>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Footer */}
@@ -611,6 +683,14 @@ export default function Customers() {
                                 <p className="text-sm opacity-80">Type: {viewing.purifiers[0].type}</p>
                                 <span className={`text-xs px-2 py-0.5 rounded ${viewing.purifiers[0].warrantyStatus === 'Active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                     Warranty: {viewing.purifiers[0].warrantyStatus}
+                                </span>
+                             </>
+                         ) : viewing.rentalDetails?.planName ? (
+                             <>
+                                <p className="font-semibold text-amber-600">Rental: {viewing.rentalDetails.planName}</p>
+                                <p className="text-sm opacity-80">Model: {viewing.rentalDetails.machineModel}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded ${viewing.rentalDetails.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                                    Status: {viewing.rentalDetails.status}
                                 </span>
                              </>
                          ) : (

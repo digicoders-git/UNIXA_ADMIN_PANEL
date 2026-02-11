@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { getRentalPlans, createRentalPlan, updateRentalPlan, deleteRentalPlan } from "../apis/rentalPlans";
+import { listAmcPlans } from "../apis/amcPlans";
+import { listProducts } from "../apis/products";
 import { FaEdit, FaTrash, FaPlus, FaImage, FaCheck, FaTimes } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -9,6 +11,8 @@ export default function RentalPlanManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("create"); // 'create' or 'edit'
   const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [allAmcPlans, setAllAmcPlans] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -20,12 +24,35 @@ export default function RentalPlanManagement() {
     features: "", // We'll handle this as newline separated string for input simplicity
     image: null, 
     isActive: true,
+    amcPlans: [],
+    productId: "",
+    description: "",
   });
   const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     fetchPlans();
+    fetchAmcPlans();
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const data = await listProducts();
+      setAllProducts(data || []);
+    } catch (error) {
+      console.error("Failed to fetch products", error);
+    }
+  };
+
+  const fetchAmcPlans = async () => {
+    try {
+      const data = await listAmcPlans(true);
+      setAllAmcPlans(data || []);
+    } catch (error) {
+      console.error("Failed to fetch AMC plans", error);
+    }
+  };
 
   const fetchPlans = async () => {
     setLoading(true);
@@ -50,6 +77,9 @@ export default function RentalPlanManagement() {
       features: "",
       image: null,
       isActive: true,
+      amcPlans: [],
+      productId: "",
+      description: "",
     });
     setImagePreview(null);
     setIsModalOpen(true);
@@ -67,6 +97,9 @@ export default function RentalPlanManagement() {
       features: plan.features ? plan.features.join("\n") : "",
       image: null, // Keep null unless changing
       isActive: plan.isActive,
+      amcPlans: Array.isArray(plan.amcPlans) ? plan.amcPlans.map(a => a._id || a) : [],
+      productId: plan.productId?._id || plan.productId || "",
+      description: plan.description || "",
     });
     setImagePreview(plan.image?.url || null);
     setIsModalOpen(true);
@@ -78,6 +111,17 @@ export default function RentalPlanManagement() {
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
+  };
+
+  const toggleAmcPlan = (planId) => {
+    setFormData(prev => {
+      const exists = prev.amcPlans.includes(planId);
+      if (exists) {
+        return { ...prev, amcPlans: prev.amcPlans.filter(id => id !== planId) };
+      } else {
+        return { ...prev, amcPlans: [...prev.amcPlans, planId] };
+      }
+    });
   };
 
   const handleImageChange = (e) => {
@@ -103,6 +147,13 @@ export default function RentalPlanManagement() {
     // Convert newline features specific string back to JSON string array for backend processing
     const featuresArray = formData.features.split("\n").filter(f => f.trim() !== "");
     submissionData.append("features", JSON.stringify(featuresArray));
+
+    if (formData.amcPlans && formData.amcPlans.length) {
+      submissionData.append("amcPlans", JSON.stringify(formData.amcPlans));
+    }
+
+    submissionData.append("productId", formData.productId);
+    submissionData.append("description", formData.description);
 
     if (formData.image) {
       submissionData.append("image", formData.image);
@@ -197,6 +248,12 @@ export default function RentalPlanManagement() {
                       <span>Installation</span>
                       <span className="font-semibold">{plan.installationCost}</span>
                    </div>
+                   {plan.productId && (
+                      <div className="flex justify-between text-sm text-blue-600 font-bold border-b border-gray-50 pb-1">
+                         <span>Model</span>
+                         <span className="truncate max-w-[120px]">{plan.productId.name}</span>
+                      </div>
+                   )}
                 </div>
 
                 <div className="mb-4">
@@ -347,6 +404,68 @@ export default function RentalPlanManagement() {
                   placeholder="Free Installation&#10;Unlimited Service&#10;Lifetime Warranty"
                 />
               </div>
+
+              {/* Linked Product & Description */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Link RO Product (Model)</label>
+                    <select
+                      name="productId"
+                      value={formData.productId}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    >
+                      <option value="">-- No Product Linked --</option>
+                      {allProducts.map(p => (
+                        <option key={p._id} value={p._id}>{p.name}</option>
+                      ))}
+                    </select>
+                 </div>
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Brief Description</label>
+                    <input
+                      type="text"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      placeholder="e.g. For large families (4-6 members)"
+                    />
+                 </div>
+              </div>
+
+              {/* AMC Plans Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Applicable AMC Plans</label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {allAmcPlans.map((plan) => (
+                      <div
+                        key={plan._id}
+                        onClick={() => toggleAmcPlan(plan._id)}
+                        className={`flex items-center justify-between p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                          formData.amcPlans.includes(plan._id)
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-gray-100"
+                        }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-gray-800">{plan.name}</span>
+                          <span className="text-[11px] text-gray-500">₹{plan.price} / {plan.durationMonths}m</span>
+                        </div>
+                        {formData.amcPlans.includes(plan._id) ? (
+                          <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                            <FaCheck className="text-white text-[10px]" />
+                          </div>
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-gray-200" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {allAmcPlans.length === 0 && (
+                     <p className="text-xs text-gray-400 italic">No AMC plans found.</p>
+                  )}
+                </div>
 
               {/* Image Upload */}
               <div>

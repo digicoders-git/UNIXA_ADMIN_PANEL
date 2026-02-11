@@ -11,6 +11,7 @@ import {
   deleteProduct,
 } from "../apis/products";
 import { listOffers } from "../apis/offers";
+import { listAmcPlans } from "../apis/amcPlans";
 import {
   FaBoxOpen,
   FaPlus,
@@ -25,7 +26,9 @@ import {
   FaToggleOff,
   FaEye,
   FaTags,
-  FaTimes
+  FaTimes,
+  FaCheck,
+  FaShieldAlt
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -52,6 +55,7 @@ const emptyForm = {
   about: "",
   isActive: true,
   offerId: "",
+  amcPlans: [],
 };
 
 export default function Products() {
@@ -62,6 +66,7 @@ export default function Products() {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [availableOffers, setAvailableOffers] = useState([]);
+  const [allAmcPlans, setAllAmcPlans] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -138,10 +143,20 @@ export default function Products() {
     }
   };
 
+  const fetchAmcPlans = async () => {
+    try {
+      const list = await listAmcPlans();
+      setAllAmcPlans(list || []);
+    } catch (e) {
+      console.error("Failed to load AMC plans", e);
+    }
+  };
+
   useEffect(() => {
     fetchCategories();
     fetchOffers();
     fetchProducts();
+    fetchAmcPlans();
   }, []);
 
   // categoryId -> name map
@@ -201,6 +216,17 @@ export default function Products() {
     }));
     setError("");
     setSuccess("");
+  };
+
+  const toggleAmcPlan = (planId) => {
+    setForm(prev => {
+      const exists = prev.amcPlans.includes(planId);
+      if (exists) {
+        return { ...prev, amcPlans: prev.amcPlans.filter(id => id !== planId) };
+      } else {
+        return { ...prev, amcPlans: [...prev.amcPlans, planId] };
+      }
+    });
   };
 
   const handleMainImageChange = (e) => {
@@ -340,6 +366,7 @@ export default function Products() {
           ? prod.isActive
           : true,
       offerId: prod.offerId || prod.offer?._id || prod.offer || "",
+      amcPlans: Array.isArray(prod.amcPlans) ? prod.amcPlans.map(a => a._id || a) : [],
     });
 
     if (Array.isArray(prod.sizes) && prod.sizes.length) {
@@ -486,6 +513,30 @@ export default function Products() {
       galleryImageFiles.forEach((file) =>
         fd.append("galleryImages", file)
       );
+    }
+
+    // AMC Plans - ALWAYS send, even if empty
+    console.log("DEBUG Frontend: Full form state:", form);
+    console.log("DEBUG Frontend: form.amcPlans value:", form.amcPlans);
+    console.log("DEBUG Frontend: form.amcPlans type:", typeof form.amcPlans);
+    console.log("DEBUG Frontend: form.amcPlans is array?", Array.isArray(form.amcPlans));
+    
+    const amcPlansToSend = form.amcPlans || [];
+    console.log("DEBUG Frontend: amcPlansToSend:", amcPlansToSend);
+    
+    const amcPlansJson = JSON.stringify(amcPlansToSend);
+    console.log("DEBUG Frontend: amcPlans JSON string:", amcPlansJson);
+    console.log("DEBUG Frontend: JSON string length:", amcPlansJson.length);
+    
+    fd.append("amcPlans", amcPlansJson);
+    console.log("DEBUG Frontend: ✅ AMC plans appended to FormData");
+
+    // Log all FormData entries
+    console.log("DEBUG Frontend: FormData entries:");
+    for (let [key, value] of fd.entries()) {
+      if (key === 'amcPlans') {
+        console.log(`  ${key}:`, value);
+      }
     }
 
     return fd;
@@ -958,6 +1009,7 @@ export default function Products() {
                       "Pricing",
                       "Status",
                       "Stock / Date",
+                      "AMC Plans",
                       "Actions",
                     ].map((h) => (
                       <th
@@ -1061,6 +1113,26 @@ export default function Products() {
                                 {p.createdAt ? fmtDate(p.createdAt) : "-"}
                              </div>
                              <div className="text-[10px] opacity-50 uppercase tracking-tighter">Listed Date</div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-1 max-w-[150px]">
+                              {p.amcPlans?.length > 0 ? (
+                                p.amcPlans.map((planId, idx) => {
+                                    // backend populations se object aa sakta hai, ya fir local lookup
+                                    const planObj = (typeof planId === "object" && planId.name) ? planId : null;
+                                    const plan = planObj || allAmcPlans.find(ap => String(ap._id) === String(planId._id || planId));
+
+                                    return (
+                                      <span key={idx} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100 flex items-center gap-1">
+                                         <FaShieldAlt size={8} />
+                                         {plan?.name || "Plan"}
+                                      </span>
+                                    );
+                                })
+                              ) : (
+                                <span className="text-[10px] text-slate-300 italic">None</span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-1">
@@ -1592,7 +1664,6 @@ export default function Products() {
                         </option>
                       ))}
                   </select>
-
                   {/* Dynamic Price Breakdown Preview */}
                   {form.price && (
                     <div
@@ -1662,6 +1733,48 @@ export default function Products() {
                         </span>
                       </div>
                     </div>
+                  )}
+                </div>
+
+                {/* AMC Plans */}
+                <div className="md:col-span-2">
+                  <label className="block mb-2 text-sm font-medium" style={{ color: themeColors.text }}>
+                    Applicable AMC Plans
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {allAmcPlans
+                      .filter(plan => plan.isActive || form.amcPlans.includes(plan._id))
+                      .map((plan) => (
+                      <div
+                        key={plan._id}
+                        onClick={() => toggleAmcPlan(plan._id)}
+                        className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
+                          form.amcPlans.includes(plan._id)
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                            : "border-gray-200"
+                        } ${!plan.isActive ? "opacity-50 grayscale-[0.5]" : ""}`}
+                        style={{
+                          borderColor: form.amcPlans.includes(plan._id) ? "#3b82f6" : themeColors.border,
+                          backgroundColor: form.amcPlans.includes(plan._id) ? "#3b82f610" : "transparent"
+                        }}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold flex items-center gap-2">
+                             {plan.name}
+                             {!plan.isActive && <span className="text-[8px] bg-red-100 text-red-600 px-1 rounded">Inactive</span>}
+                          </span>
+                          <span className="text-xs opacity-60">₹{plan.price} / {plan.durationMonths}m</span>
+                        </div>
+                        {form.amcPlans.includes(plan._id) ? (
+                          <FaCheck className="text-blue-500 text-xs" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-gray-300" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {allAmcPlans.length === 0 && (
+                     <p className="text-xs opacity-50 italic">No AMC plans found. Please create them in the Master AMC section.</p>
                   )}
                 </div>
 
@@ -2513,34 +2626,73 @@ export default function Products() {
                      )}
                   </div>
 
-                  {/* Colors & Sizes Chips */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {viewProduct.sizes?.length > 0 && (
-                         <div>
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Available Sizes</h4>
-                            <div className="flex flex-wrap gap-2">
-                               {viewProduct.sizes.map(s => (
-                                  <span key={s} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-inner border border-white">
-                                     {s}
-                                  </span>
-                               ))}
-                            </div>
+                   {/* AMC Coverage Section */}
+                   {Array.isArray(viewProduct.amcPlans) && viewProduct.amcPlans.length > 0 && (
+                      <div className="bg-blue-50/30 p-8 rounded-[2.5rem] border border-blue-100/50">
+                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-6 flex items-center gap-2 px-2">
+                            <FaShieldAlt size={14} /> Maintenance Coverage (AMC)
+                         </h4>
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             {viewProduct.amcPlans.map(id => {
+                                // Detail page might have populated objects or just IDs
+                                const planObj = (typeof id === "object" && id.name) ? id : null;
+                                const plan = planObj || allAmcPlans.find(p => String(p._id) === String(id._id || id));
+
+                                if (!plan) return null;
+                                return (
+                                   <div key={plan._id || String(id)} className="bg-white p-5 rounded-3xl border border-blue-100 shadow-sm hover:shadow-md transition-all">
+                                      <div className="flex justify-between items-start mb-3">
+                                         <div>
+                                            <p className="font-black text-slate-800 text-sm leading-tight">{plan.name}</p>
+                                            <p className="text-[9px] font-bold text-blue-500 uppercase tracking-widest mt-1">{plan.durationMonths} Months Plan</p>
+                                         </div>
+                                         <div className="text-right">
+                                            <p className="text-sm font-black text-slate-900">₹{plan.price}</p>
+                                         </div>
+                                      </div>
+                                      <ul className="space-y-1.5">
+                                         {plan.features?.slice(0, 3).map((f, i) => (
+                                            <li key={i} className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                                               <div className="w-3 h-3 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center text-[7px]">✓</div>
+                                               {f}
+                                            </li>
+                                         ))}
+                                      </ul>
+                                   </div>
+                                );
+                             })}
                          </div>
-                      )}
-                      {viewProduct.colors?.length > 0 && (
-                         <div>
-                            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Color Palette</h4>
-                            <div className="flex flex-wrap gap-2">
-                               {viewProduct.colors.map(c => (
-                                  <span key={c} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-inner border border-white flex items-center gap-2">
-                                     <div className="w-2 h-2 rounded-full bg-slate-400" style={{ backgroundColor: c.toLowerCase() }} />
-                                     {c}
-                                  </span>
-                               ))}
-                            </div>
-                         </div>
-                      )}
-                  </div>
+                      </div>
+                   )}
+
+                   {/* Colors & Sizes Chips */}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       {viewProduct.sizes?.length > 0 && (
+                          <div>
+                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Available Sizes</h4>
+                             <div className="flex flex-wrap gap-2">
+                                {viewProduct.sizes.map(s => (
+                                   <span key={s} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-inner border border-white">
+                                      {s}
+                                   </span>
+                                ))}
+                             </div>
+                          </div>
+                       )}
+                       {viewProduct.colors?.length > 0 && (
+                          <div>
+                             <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Color Palette</h4>
+                             <div className="flex flex-wrap gap-2">
+                                {viewProduct.colors.map(c => (
+                                   <span key={c} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-black shadow-inner border border-white flex items-center gap-2">
+                                      <div className="w-2 h-2 rounded-full bg-slate-400" style={{ backgroundColor: c.toLowerCase() }} />
+                                      {c}
+                                   </span>
+                                ))}
+                             </div>
+                          </div>
+                       )}
+                   </div>
 
                 </div>
               </div>

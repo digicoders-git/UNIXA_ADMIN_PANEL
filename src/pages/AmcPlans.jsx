@@ -2,9 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import api from "../contants/api"; 
-
-import axios from "axios"; 
+import http from "../apis/http"; 
 import {
   FaShieldAlt,
   FaPlus,
@@ -36,10 +34,6 @@ export default function AmcPlans() {
     isActive: true,
   });
 
-  // Ensure we use a full URL if no proxy is set up
-  const envUrl = import.meta.env.VITE_API_URL;
-  const apiUrl = (envUrl && envUrl.startsWith('http')) ? envUrl : 'http://localhost:5000/api';
-
   useEffect(() => {
     fetchPlans();
   }, []);
@@ -47,7 +41,7 @@ export default function AmcPlans() {
   const fetchPlans = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(`${apiUrl}/amc-plans`); // Public/Admin route
+      const { data } = await http.get("/api/amc-plans"); // Public/Admin route
       if (data.success) {
         setPlans(data.plans);
       }
@@ -67,15 +61,11 @@ export default function AmcPlans() {
         features: form.features.split(',').map(f => f.trim()).filter(Boolean),
       };
 
-      const config = {
-          headers: { Authorization: `Bearer ${token}` }
-      };
-
       if (editingId) {
-        await axios.put(`${apiUrl}/amc-plans/${editingId}`, payload, config);
+        await http.put(`/api/amc-plans/${editingId}`, payload);
         Swal.fire("Success", "Plan updated successfully", "success");
       } else {
-        await axios.post(`${apiUrl}/amc-plans`, payload, config);
+        await http.post("/api/amc-plans", payload);
         Swal.fire("Success", "Plan created successfully", "success");
       }
       setIsModalOpen(false);
@@ -104,9 +94,7 @@ export default function AmcPlans() {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to delete this plan?")) return;
     try {
-      await axios.delete(`${apiUrl}/amc-plans/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-      });
+      await http.delete(`/api/amc-plans/${id}`);
       Swal.fire("Success", "Plan deleted", "success");
       fetchPlans();
     } catch (error) {
