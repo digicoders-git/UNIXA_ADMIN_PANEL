@@ -81,7 +81,7 @@ const Login = () => {
         <div className="text-center mb-4">
           <div className="w-full h-32 mx-auto mb-2 flex items-center justify-center p-1">
             <img
-              src="/sks-logo.png"
+              src="/sks-logo1.png"
               alt="Unixa Logo"
               className="w-full h-full object-contain"
             />
