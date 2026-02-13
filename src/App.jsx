@@ -30,7 +30,7 @@ function App() {
         {/* Protected */}
         {isLoggedIn ? (
           <Route element={<DashboardLayout />}>
-            {routes.map(({ path, component: Component }) => (
+            {routes.flatMap(route => (route.children ? route.children : route)).map(({ path, component: Component }) => (
               <Route
                 key={path}
                 path={path}

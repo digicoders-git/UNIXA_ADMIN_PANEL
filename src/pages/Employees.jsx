@@ -558,9 +558,6 @@ export default function Employees() {
                   >
                     <option value="Employee">Employee</option>
                     <option value="Manager">Manager</option>
-                    <option value="Admin">Admin</option>
-                    <option value="HR">HR</option>
-                    <option value="Sales">Sales</option>
                   </select>
                 </div>
 

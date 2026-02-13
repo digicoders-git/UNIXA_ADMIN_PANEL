@@ -20,7 +20,8 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
 
   const currentPageTitle = useMemo(() => {
-    return routes.find((route) => route.path === location.pathname)?.name || "Dashboard";
+    const allRoutes = routes.flatMap(r => r.children || r);
+    return allRoutes.find((route) => route.path === location.pathname)?.name || "Dashboard";
   }, [location.pathname]);
 
   const toggleSidebar = useCallback(() => setSidebarOpen((prev) => !prev), []);

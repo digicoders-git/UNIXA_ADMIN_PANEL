@@ -1,6 +1,6 @@
 // src/pages/Sidebar.jsx
 import { Link } from "react-router-dom";
-import { memo } from "react";
+import { memo, useState } from "react";
 import { 
   FaTachometerAlt, 
   FaGavel, 
@@ -10,12 +10,84 @@ import {
   FaCog,
   FaSignOutAlt,
   FaTimes,
-  FaUserCircle
+  FaUserCircle,
+  FaChevronDown,
+  FaChevronRight
 } from "react-icons/fa";
 
-const SidebarItem = memo(({ route, isActive, themeColors, onClose }) => {
+const SidebarItem = memo(({ route, isActive, themeColors, onClose, currentPath }) => {
   const IconComponent = route.icon;
-  
+  const hasChildren = route.children && route.children.length > 0;
+  const [isOpen, setIsOpen] = useState(() => {
+    // Auto-open if child is active
+    if (!hasChildren) return false;
+    return route.children.some(child => currentPath === child.path || currentPath.startsWith(child.path + "/"));
+  });
+
+  // Toggle for parent items
+  const handleToggle = (e) => {
+    e.preventDefault();
+    setIsOpen(!isOpen);
+  };
+
+  if (hasChildren) {
+    return (
+      <div className="mb-1">
+        <div
+          onClick={handleToggle}
+          className={`flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition-all duration-200 ${
+            isActive ? "shadow-md" : "hover:shadow-sm"
+          }`}
+          style={{
+            color: isActive ? themeColors.primary : themeColors.text,
+            backgroundColor: isActive
+              ? themeColors.active?.background || `${themeColors.primary}15`
+              : "transparent",
+            border: isActive ? `1px solid ${themeColors.primary}30` : "1px solid transparent",
+          }}
+          onMouseEnter={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor =
+                themeColors.hover?.background || `${themeColors.primary}10`;
+              e.currentTarget.style.borderColor = `${themeColors.primary}20`;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isActive) {
+              e.currentTarget.style.backgroundColor = "transparent";
+              e.currentTarget.style.borderColor = "transparent";
+            }
+          }}
+        >
+          <div className="flex items-center">
+             <IconComponent
+                className="mr-3 text-lg transition-colors duration-200"
+                style={{
+                  color: isActive ? themeColors.primary : themeColors.textSecondary,
+                }}
+              />
+            <span className="font-medium text-sm">{route.name}</span>
+          </div>
+          {isOpen ? <FaChevronDown size={12} /> : <FaChevronRight size={12} />}
+        </div>
+        {isOpen && (
+          <div className="ml-4 pl-2 border-l border-gray-200 mt-1 space-y-1">
+            {route.children.map((child) => (
+              <SidebarItem
+                key={child.path}
+                route={child}
+                isActive={currentPath === child.path || (child.path !== "/" && currentPath.startsWith(child.path + "/"))} // Recalculate active for child
+                themeColors={themeColors}
+                onClose={onClose}
+                currentPath={currentPath}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <Link
       to={route.path}
@@ -70,14 +142,13 @@ const Sidebar = ({
   // 🔥 Sirf wahi routes jo hide: true NA ho
   const visibleRoutes = routes.filter((r) => !r.hide);
 
-  // Active check — nested paths handle karega (e.g. /surveys/123/questions)
+  // Active check — logic updated to handle parents
   const isRouteActive = (route) => {
+    if (route.children) {
+      return route.children.some(child => isRouteActive(child));
+    }
     if (currentPath === route.path) return true;
-    // agar route.path "/" nahi hai aur currentPath usse start hota hai
-    if (
-      route.path !== "/" &&
-      currentPath.startsWith(route.path + "/")
-    ) {
+    if (route.path !== "/" && currentPath.startsWith(route.path + "/")) {
       return true;
     }
     return false;
@@ -134,11 +205,12 @@ const Sidebar = ({
           <nav className="px-4 space-y-2" aria-label="Main navigation">
             {visibleRoutes.map((route) => (
               <SidebarItem
-                key={route.path}
+                key={route.path || route.name}
                 route={route}
                 isActive={isRouteActive(route)}
                 themeColors={themeColors}
                 onClose={onClose}
+                currentPath={currentPath}
               />
             ))}
           </nav>

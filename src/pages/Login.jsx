@@ -79,9 +79,9 @@ const Login = () => {
       >
         {/* Branding Section */}
         <div className="text-center mb-4">
-          <div className="w-full h-32 mx-auto mb-2 flex items-center justify-center p-1">
+          <div className="w-full h-40 mx-auto mb-2 flex items-center justify-center p-1">
             <img
-              src="/sks-logo1.png"
+              src="/logo1.png"
               alt="Unixa Logo"
               className="w-full h-full object-contain"
             />

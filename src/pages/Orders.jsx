@@ -134,6 +134,9 @@ export default function Orders() {
     if (statusFilter !== "all") {
       list = list.filter((o) => o.status === statusFilter);
     }
+    
+    // EXCLUDE offline orders for this view
+    list = list.filter((o) => o.source !== "offline");
 
     if (!search.trim()) return list;
     const q = search.toLowerCase();

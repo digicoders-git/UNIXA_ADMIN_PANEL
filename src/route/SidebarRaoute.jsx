@@ -24,6 +24,7 @@ const Categories = lazy(() => import("../pages/Categories"));
 const Products = lazy(() => import("../pages/Products"));
 const Offers = lazy(() => import("../pages/Offers"));
 const Orders = lazy(() => import("../pages/Orders"));
+const OfflineOrders = lazy(() => import("../pages/OfflineOrders")); // New
 const Enquiries = lazy(() => import("../pages/Enquiries"));
 const Sliders = lazy(() => import("../pages/Sliders"));
 const Blogs = lazy(() => import("../pages/Blogs"));
@@ -33,7 +34,7 @@ const Employees = lazy(() => import("../pages/Employees"));
 const Customers = lazy(() => import("../pages/Customers"));
 const AMCManagement = lazy(() => import("../pages/AMCManagement"));
 const AmcPlans = lazy(() => import("../pages/AmcPlans"));
-const ServiceRequests = lazy(() => import("../pages/ServiceRequests")); // Added
+const ServiceRequests = lazy(() => import("../pages/ServiceRequests"));
 const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
 const Notifications = lazy(() => import("../pages/Notifications"));
 const Refunds = lazy(() => import("../pages/Refunds"));
@@ -49,7 +50,17 @@ const routes = [
   { path: "/rental-plans", component: RentalPlanManagement, name: "Rental Plans", icon: FaBox },
   { path: "/stock", component: StockManagement, name: "Stock Management", icon: FaDolly },
   { path: "/offers", component: Offers, name: "Offers", icon: FaCoins },
-  { path: "/orders", component: Orders, name: "Orders", icon: FaShoppingCart },
+  
+  // Orders Group
+  {
+    name: "Orders",
+    icon: FaShoppingCart,
+    children: [
+       { path: "/orders", component: Orders, name: "Online Orders", icon: FaShoppingCart },
+       { path: "/offline-orders", component: OfflineOrders, name: "Offline Orders", icon: FaShoppingCart },
+    ]
+  },
+
   { path: "/transactions", component: Transactions, name: "Transactions", icon: FaCoins },
   { path: "/enquiries", component: Enquiries, name: "Enquiries", icon: FaEnvelopeOpenText },
   { path: "/sliders", component: Sliders, name: "Sliders", icon: FaImages },
@@ -58,8 +69,8 @@ const routes = [
   { path: "/employee-assets", component: EmployeeAssets, name: "Employee Assets", icon: FaArchive },
   { path: "/customers", component: Customers, name: "Customers", icon: FaUsers },
   { path: "/amc", component: AMCManagement, name: "AMC Management", icon: FaShieldAlt },
-  { path: "/amc-plans", component: AmcPlans, name: "Master Plans", icon: FaShieldAlt }, // Added
-  { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench }, // Added
+  { path: "/amc-plans", component: AmcPlans, name: "Master Plans", icon: FaShieldAlt },
+  { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench },
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },
   { path: "/refunds", component: Refunds, name: "Refund Requests", icon: FaUndo },
   { path: "/change-password", component: ChangePassword, name: "Change Password", icon: FaKey },
