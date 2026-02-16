@@ -21,8 +21,10 @@ import {
   FaToggleOn,
   FaToggleOff,
   FaTimes,
-  FaFilter
+  FaFilter,
+  FaQrcode
 } from "react-icons/fa";
+import { QRCodeCanvas } from "qrcode.react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -55,6 +57,8 @@ export default function ROParts() {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState("");
   const [search, setSearch] = useState("");
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [qrVisible, setQrVisible] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -319,6 +323,16 @@ export default function ROParts() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => {
+                          setQrCodeData(`https://www.unixa.co.in/product/${part.p_id}`);
+                          setQrVisible(true);
+                        }}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Generate QR Code"
+                      >
+                        <FaQrcode />
+                      </button>
                       <button onClick={() => handleEdit(part)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"><FaEdit /></button>
                       <button onClick={() => handleDelete(part)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"><FaTrash /></button>
                     </div>
@@ -468,6 +482,43 @@ export default function ROParts() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* QR CODE MODAL */}
+      {qrVisible && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl p-8 flex flex-col items-center">
+             <div className="flex justify-between w-full mb-6">
+                <h3 className="text-xl font-bold">Part QR Code</h3>
+                <button onClick={() => setQrVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                   <FaTimes size={20} />
+                </button>
+             </div>
+             
+             <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner mb-6">
+                <QRCodeCanvas value={qrCodeData} size={200} level="H" />
+             </div>
+             
+             <p className="text-center text-sm text-slate-500 mb-6 font-medium">
+                Scan this code to view the part detail page on <br/>
+                <span className="text-blue-600 font-bold">www.unixa.co.in</span>
+             </p>
+             
+             <button 
+                onClick={() => {
+                   const canvas = document.querySelector('canvas');
+                   const url = canvas.toDataURL("image/png");
+                   const link = document.createElement('a');
+                   link.href = url;
+                   link.download = 'part-qr.png';
+                   link.click();
+                }}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
+             >
+                Download QR Code
+             </button>
           </div>
         </div>
       )}

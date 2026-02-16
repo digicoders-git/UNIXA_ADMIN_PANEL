@@ -28,8 +28,10 @@ import {
   FaTags,
   FaTimes,
   FaCheck,
-  FaShieldAlt
+  FaShieldAlt,
+  FaQrcode
 } from "react-icons/fa";
+import { QRCodeCanvas } from "qrcode.react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
@@ -105,6 +107,9 @@ export default function Products() {
 
   // NEW: full view modal product
   const [viewProduct, setViewProduct] = useState(null);
+
+  const [qrCodeData, setQrCodeData] = useState(null); // For QR Modal
+  const [qrVisible, setQrVisible] = useState(false);
 
   // ---------- fetchers ----------
   const fetchCategories = async () => {
@@ -1152,6 +1157,16 @@ export default function Products() {
                                 <FaEdit size={14} />
                               </button>
                               <button
+                                onClick={() => {
+                                  setQrCodeData(`https://www.unixa.co.in/product/${p.p_id}`);
+                                  setQrVisible(true);
+                                }}
+                                className="p-2 rounded-lg hover:bg-indigo-50 text-indigo-500 transition-colors"
+                                title="Generate QR Code"
+                              >
+                                <FaQrcode size={14} />
+                              </button>
+                              <button
                                 onClick={() => handleDelete(p)}
                                 disabled={!isLoggedIn || saving}
                                 className="p-2 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-30"
@@ -1414,6 +1429,21 @@ export default function Products() {
                               }
                             >
                               <FaEdit /> Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQrCodeData(`https://www.unixa.co.in/product/${p.p_id}`);
+                                setQrVisible(true);
+                              }}
+                              className="px-2 py-1 rounded-lg border text-[11px] flex items-center gap-1"
+                              style={{
+                                borderColor: themeColors.border,
+                                color: "#4f46e5",
+                              }}
+                              title="Generate QR Code"
+                            >
+                              <FaQrcode /> QR
                             </button>
                             <button
                               type="button"
@@ -2725,6 +2755,43 @@ export default function Products() {
                   </button>
                </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR CODE MODAL */}
+      {qrVisible && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl p-8 flex flex-col items-center">
+             <div className="flex justify-between w-full mb-6">
+                <h3 className="text-xl font-bold">Product QR Code</h3>
+                <button onClick={() => setQrVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                   <FaTimes size={20} />
+                </button>
+             </div>
+             
+             <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner mb-6">
+                <QRCodeCanvas value={qrCodeData} size={200} level="H" />
+             </div>
+             
+             <p className="text-center text-sm text-slate-500 mb-6 font-medium">
+                Scan this code to view the product detail page on <br/>
+                <span className="text-blue-600 font-bold">www.unixa.co.in</span>
+             </p>
+             
+             <button 
+                onClick={() => {
+                   const canvas = document.querySelector('canvas');
+                   const url = canvas.toDataURL("image/png");
+                   const link = document.createElement('a');
+                   link.href = url;
+                   link.download = 'product-qr.png';
+                   link.click();
+                }}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-xs hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
+             >
+                Download QR Code
+             </button>
           </div>
         </div>
       )}

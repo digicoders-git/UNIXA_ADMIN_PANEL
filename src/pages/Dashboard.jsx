@@ -11,7 +11,11 @@ import {
   FaEnvelopeOpenText,
   FaTags,
   FaUserTie,
+  FaQrcode,
+  FaTimes,
+  FaExternalLinkAlt
 } from "react-icons/fa";
+import { QRCodeCanvas } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
 import {
   LineChart,
@@ -49,6 +53,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [qrVisible, setQrVisible] = useState(false);
 
   const fetchOverview = async (isRefresh = false) => {
     try {
@@ -194,6 +199,18 @@ export default function Dashboard() {
           >
             <FaSyncAlt className={refreshing ? "animate-spin" : ""} />
             {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button
+            onClick={() => setQrVisible(true)}
+            className="px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all hover:opacity-90 active:scale-95 shadow-md"
+            style={{
+              backgroundColor: "#1e3a8a",
+              color: "#ffffff",
+            }}
+          >
+            <FaQrcode />
+            Generate Website QR
           </button>
         </div>
       </div>
@@ -893,6 +910,52 @@ export default function Dashboard() {
             </div>
           </div>
         </>
+      )}
+      {/* WEBSITE QR CODE MODAL */}
+      {qrVisible && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl p-8 flex flex-col items-center">
+             <div className="flex justify-between w-full mb-6">
+                <h3 className="text-xl font-bold text-slate-800">Website QR Code</h3>
+                <button onClick={() => setQrVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                   <FaTimes size={20} />
+                </button>
+             </div>
+             
+             <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner mb-6">
+                <QRCodeCanvas value="https://www.unixa.co.in" size={220} level="H" />
+             </div>
+             
+             <p className="text-center text-sm text-slate-500 mb-6 font-medium">
+                Scan to visit our official website at <br/>
+                <span className="text-blue-600 font-bold underline cursor-pointer" onClick={() => window.open('https://www.unixa.co.in', '_blank')}>
+                   www.unixa.co.in
+                </span>
+             </p>
+             
+             <div className="w-full space-y-3">
+                <button 
+                    onClick={() => window.open('https://www.unixa.co.in', '_blank')}
+                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                    <FaExternalLinkAlt /> Open Website
+                </button>
+                <button 
+                    onClick={() => {
+                        const canvas = document.querySelector('canvas');
+                        const url = canvas.toDataURL("image/png");
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = 'unixa-website-qr.png';
+                        link.click();
+                    }}
+                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
+                >
+                    Download QR Code
+                </button>
+             </div>
+          </div>
+        </div>
       )}
     </div>
   );
