@@ -43,6 +43,7 @@ export default function EmployeeAssets() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
   const [selectedAsset, setSelectedAsset] = useState(null);
   
@@ -306,6 +307,12 @@ export default function EmployeeAssets() {
                                   </td>
                                   <td className="p-4 text-right">
                                       <div className="flex justify-end gap-2">
+                                          <button 
+                                            onClick={() => { setSelectedAsset(asset); setIsHistoryModalOpen(true); }}
+                                            className="px-3 py-1 rounded text-xs bg-purple-50 border border-purple-200 text-purple-700 hover:bg-purple-100 flex items-center gap-1"
+                                          >
+                                              <FaHistory /> History
+                                          </button>
                                           {asset.status === 'Available' ? (
                                               <button 
                                                 onClick={() => { setSelectedAsset(asset); setIsAssignModalOpen(true); }}
@@ -435,6 +442,58 @@ export default function EmployeeAssets() {
                            <button type="submit" className="px-4 py-2 rounded bg-orange-600 text-white hover:bg-orange-700">Confirm Return</button>
                        </div>
                    </form>
+               </div>
+          </div>
+      )}
+
+      {/* History Modal */}
+      {isHistoryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+               <div className="rounded-xl shadow-xl max-w-5xl w-full p-6 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: themeColors.surface, color: themeColors.text }}>
+                   <h2 className="text-xl font-bold mb-4 border-b pb-2" style={{ borderColor: themeColors.border }}>Asset History - {selectedAsset?.assetName}</h2>
+                   <div className="mb-4 p-3 rounded bg-blue-50 text-blue-800 text-sm flex justify-between">
+                       <span>ID: <strong>{selectedAsset?.uniqueId}</strong></span>
+                       <span>Type: <strong>{selectedAsset?.assetType}</strong></span>
+                       <span>Condition: <strong>{selectedAsset?.condition}</strong></span>
+                   </div>
+                   <div>
+                       <h3 className="font-bold mb-2">Assignment History</h3>
+                       {selectedAsset?.assignmentHistory?.length > 0 ? (
+                           <div className="overflow-x-auto">
+                               <table className="w-full text-left border-collapse">
+                                   <thead className="bg-gray-100 text-xs uppercase">
+                                       <tr>
+                                           <th className="p-3 border">Employee</th>
+                                           <th className="p-3 border">Assigned Date</th>
+                                           <th className="p-3 border">Return Date</th>
+                                           <th className="p-3 border">Condition</th>
+                                           <th className="p-3 border">Remarks</th>
+                                       </tr>
+                                   </thead>
+                                   <tbody className="text-sm">
+                                       {selectedAsset.assignmentHistory.map((history, idx) => (
+                                           <tr key={idx} className="hover:bg-gray-50">
+                                               <td className="p-3 border">{history.employeeName}</td>
+                                               <td className="p-3 border">{new Date(history.assignedDate).toLocaleDateString()}</td>
+                                               <td className="p-3 border">{new Date(history.returnDate).toLocaleDateString()}</td>
+                                               <td className="p-3 border">
+                                                   <span className={`px-2 py-1 rounded text-xs ${
+                                                       history.conditionOnreturn === 'Good' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                                                   }`}>{history.conditionOnreturn}</span>
+                                               </td>
+                                               <td className="p-3 border">{history.remarks || "-"}</td>
+                                           </tr>
+                                       ))}
+                                   </tbody>
+                               </table>
+                           </div>
+                       ) : (
+                           <p className="text-sm opacity-50 text-center py-4">No history available</p>
+                       )}
+                   </div>
+                   <div className="flex justify-end mt-6">
+                       <button onClick={()=>setIsHistoryModalOpen(false)} className="px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-700">Close</button>
+                   </div>
                </div>
           </div>
       )}

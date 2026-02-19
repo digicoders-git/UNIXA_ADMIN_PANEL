@@ -1,27 +1,26 @@
 // src/apis/categories.js
 import http from "./http";
 
-// Public Get – GET {{baseUrl}}/api/categories
+// Public Get
 export const getCategories = async () => {
   const { data } = await http.get("/api/categories?all=true");
-  return data; // expect: array of categories
+  return data;
 };
 
-
-// Admin Add – POST {{baseUrl}}/api/categories (Token via interceptor)
+// Admin Add
 export const createCategory = async (payload) => {
-  const { data } = await http.post("/api/categories", payload);
+  const { data } = await http.post("/categories", payload);
   return data;
 };
 
-// Admin Update – PUT {{baseUrl}}/api/categories/:idOrSlug (Token)
+// Admin Update
 export const updateCategory = async (idOrSlug, payload) => {
-  const { data } = await http.put(`/api/categories/${idOrSlug}`, payload);
+  const { data } = await http.put(`/categories/${idOrSlug}`, payload);
   return data;
 };
 
-// Admin Delete – DELETE {{baseUrl}}/api/categories/:idOrSlug (Token)
+// Admin Delete
 export const deleteCategory = async (idOrSlug) => {
-  const { data } = await http.delete(`/api/categories/${idOrSlug}`);
+  const { data } = await http.delete(`/categories/${idOrSlug}`);
   return data;
 };

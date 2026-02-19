@@ -34,6 +34,8 @@ const emptyForm = {
   buttonText: "",
   linkUrl: "",
   sortOrder: "",
+  titleColor: "#ffffff",
+  subtitleColor: "#ffffff",
   isActive: true,
 };
 
@@ -125,6 +127,8 @@ export default function Sliders() {
         typeof slider.sortOrder === "number"
           ? String(slider.sortOrder)
           : slider.sortOrder || "",
+      titleColor: slider.titleColor || "#ffffff",
+      subtitleColor: slider.subtitleColor || "#ffffff",
       isActive:
         typeof slider.isActive === "boolean" ? slider.isActive : true,
     });
@@ -143,6 +147,8 @@ export default function Sliders() {
       fd.append("buttonText", form.buttonText.trim());
     if (form.linkUrl.trim()) fd.append("linkUrl", form.linkUrl.trim());
     if (form.sortOrder !== "") fd.append("sortOrder", form.sortOrder);
+    fd.append("titleColor", form.titleColor);
+    fd.append("subtitleColor", form.subtitleColor);
     fd.append("isActive", String(form.isActive));
     if (imageFile) fd.append("image", imageFile);
     return fd;
@@ -553,9 +559,16 @@ export default function Sliders() {
               ) : (
                 filteredSliders.map((s) => (
                   <tr key={s._id || s.id}>
-                    {/* Image */}
+                    {/* Image/Video */}
                     <td className="px-4 py-2">
-                      {s.image?.url ? (
+                      {s.video?.url ? (
+                        <video
+                          src={s.video.url}
+                          className="h-16 w-32 object-cover rounded-lg border"
+                          style={{ borderColor: themeColors.border }}
+                          muted
+                        />
+                      ) : s.image?.url ? (
                         <img
                           src={s.image.url}
                           alt={s.title}
@@ -570,7 +583,7 @@ export default function Sliders() {
                             color: themeColors.text,
                           }}
                         >
-                          No image
+                          No media
                         </div>
                       )}
                     </td>
@@ -900,6 +913,52 @@ export default function Sliders() {
                   </p>
                 </div>
 
+                {/* Title Color */}
+                <div>
+                  <label
+                    htmlFor="titleColor"
+                    className="block mb-1 text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
+                    Title Color
+                  </label>
+                  <input
+                    id="titleColor"
+                    name="titleColor"
+                    type="color"
+                    value={form.titleColor}
+                    onChange={handleChange}
+                    className="w-full h-10 px-1 py-1 rounded-lg border cursor-pointer"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                    }}
+                  />
+                </div>
+
+                {/* Subtitle Color */}
+                <div>
+                  <label
+                    htmlFor="subtitleColor"
+                    className="block mb-1 text-sm font-medium"
+                    style={{ color: themeColors.text }}
+                  >
+                    Subtitle Color
+                  </label>
+                  <input
+                    id="subtitleColor"
+                    name="subtitleColor"
+                    type="color"
+                    value={form.subtitleColor}
+                    onChange={handleChange}
+                    className="w-full h-10 px-1 py-1 rounded-lg border cursor-pointer"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                    }}
+                  />
+                </div>
+
                 {/* Active */}
                 <div className="flex items-center gap-2 mt-6">
                   <input
@@ -919,14 +978,14 @@ export default function Sliders() {
                   </label>
                 </div>
 
-                {/* Image picker - nicer design */}
+                {/* Image/Video picker */}
                 <div className="md:col-span-2">
                   <label
-                    htmlFor="sliderImage"
+                    htmlFor="sliderMedia"
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Slider Image
+                    Slider Image or Video
                   </label>
 
                   <label
@@ -938,24 +997,24 @@ export default function Sliders() {
                     }}
                   >
                     <input
-                      id="sliderImage"
+                      id="sliderMedia"
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       onChange={handleImageChange}
                       className="hidden"
                     />
                     <FaImages className="text-xl mb-2 opacity-80" />
                     <span className="font-medium">
                       {imageFile
-                        ? "Change selected image"
-                        : "Click to choose image"}
+                        ? "Change selected file"
+                        : "Click to choose image or video"}
                     </span>
                     <span className="text-xs opacity-70 mt-1">
-                      Recommended: wide banner image (JPG/PNG)
+                      Recommended: Wide banner (JPG/PNG/MP4)
                     </span>
                   </label>
 
-                  {(imagePreview || editing?.image?.url) && (
+                  {(imagePreview || editing?.image?.url || editing?.video?.url) && (
                     <div className="mt-3">
                       <p
                         className="text-xs mb-1 opacity-70"
@@ -963,19 +1022,28 @@ export default function Sliders() {
                       >
                         Preview:
                       </p>
-                      <img
-                        src={imagePreview || editing?.image?.url}
-                        alt="Preview"
-                        className="w-full max-h-48 object-cover rounded-xl border"
-                        style={{ borderColor: themeColors.border }}
-                      />
+                      {(imagePreview || editing?.image?.url) && !imageFile?.type?.startsWith('video/') && (
+                        <img
+                          src={imagePreview || editing?.image?.url}
+                          alt="Preview"
+                          className="w-full max-h-48 object-cover rounded-xl border"
+                          style={{ borderColor: themeColors.border }}
+                        />
+                      )}
+                      {((imageFile?.type?.startsWith('video/')) || editing?.video?.url) && (
+                        <video
+                          src={imagePreview || editing?.video?.url}
+                          controls
+                          className="w-full max-h-48 object-cover rounded-xl border"
+                          style={{ borderColor: themeColors.border }}
+                        />
+                      )}
                       {editing && !imageFile && (
                         <p
                           className="text-xs mt-1 opacity-70"
                           style={{ color: themeColors.text }}
                         >
-                          Uploading a new image will replace the existing
-                          one.
+                          Uploading a new file will replace the existing one.
                         </p>
                       )}
                     </div>

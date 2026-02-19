@@ -30,12 +30,15 @@ const emptyForm = {
   name: "",
   email: "",
   phone: "",
-  password: "", // Only for creation/reset
+  password: "",
   role: "Employee",
   designation: "",
   address: "",
   joiningDate: new Date().toISOString().split("T")[0],
   status: true,
+  location: "",
+  workingArea: "",
+  employeeId: "",
 };
 
 export default function Employees() {
@@ -98,8 +101,11 @@ export default function Employees() {
     setEditing(emp);
     setForm({
       ...emp,
-      password: "", // Don't show hash
+      password: "",
       joiningDate: emp.joiningDate ? emp.joiningDate.split("T")[0] : "",
+      location: emp.location || "",
+      workingArea: emp.workingArea || "",
+      employeeId: emp.employeeId || "",
     });
     setIsModalOpen(true);
   };
@@ -134,8 +140,29 @@ export default function Employees() {
           setSaving(false);
           return;
         }
+        const plainPassword = form.password; // Store before sending
         await createEmployee(form);
-        Swal.fire("Success", "Employee created successfully", "success");
+        
+        // Show credentials to admin
+        Swal.fire({
+          title: "Employee Created Successfully!",
+          html: `
+            <div style="text-align: left; padding: 20px;">
+              <p style="margin-bottom: 15px; font-weight: bold; color: #059669;">✓ Employee account has been created</p>
+              <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                <p style="margin: 8px 0;"><strong>Name:</strong> ${form.name}</p>
+                <p style="margin: 8px 0;"><strong>Email:</strong> ${form.email}</p>
+                <p style="margin: 8px 0;"><strong>Password:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px; color: #dc2626; font-weight: bold;">${plainPassword}</code></p>
+                <p style="margin: 8px 0;"><strong>Role:</strong> ${form.role}</p>
+              </div>
+              <p style="color: #dc2626; font-size: 14px;">⚠️ Please save these credentials and share with the employee securely.</p>
+            </div>
+          `,
+          icon: "success",
+          confirmButtonText: "Got it!",
+          confirmButtonColor: "#3b82f6",
+          width: 600
+        });
       }
       setIsModalOpen(false);
       fetchEmployeesList();
@@ -487,7 +514,7 @@ export default function Employees() {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto">
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <form id="employee-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Name */}
                 <div className="col-span-1">
                   <label className="block text-sm font-medium mb-1">Full Name *</label>
@@ -578,6 +605,24 @@ export default function Employees() {
                   />
                 </div>
 
+                {/* Employee ID */}
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium mb-1">Employee ID</label>
+                  <input
+                    type="text"
+                    name="employeeId"
+                    value={form.employeeId}
+                    onChange={handleChange}
+                    placeholder="e.g., #EMP-001"
+                    className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  />
+                </div>
+
                 {/* Joining Date */}
                 <div className="col-span-1">
                   <label className="block text-sm font-medium mb-1">Joining Date</label>
@@ -603,6 +648,42 @@ export default function Employees() {
                     value={form.address}
                     onChange={handleChange}
                     rows="2"
+                    className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  />
+                </div>
+
+                {/* Location */}
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium mb-1">Location</label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={form.location}
+                    onChange={handleChange}
+                    placeholder="e.g., New Delhi, India"
+                    className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    style={{
+                      backgroundColor: themeColors.background,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  />
+                </div>
+
+                {/* Working Area */}
+                <div className="col-span-1">
+                  <label className="block text-sm font-medium mb-1">Working Area</label>
+                  <input
+                    type="text"
+                    name="workingArea"
+                    value={form.workingArea}
+                    onChange={handleChange}
+                    placeholder="e.g., North Delhi"
                     className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     style={{
                       backgroundColor: themeColors.background,
@@ -651,13 +732,15 @@ export default function Employees() {
             {/* Modal Footer */}
             <div className="p-6 border-t flex justify-end gap-3" style={{ borderColor: themeColors.border }}>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSubmit}
+                type="submit"
+                form="employee-form"
                 disabled={saving}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition flex items-center gap-2"
               >

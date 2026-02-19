@@ -6,6 +6,18 @@ export const getEmployees = async () => {
   return data;
 };
 
+// Get my assets
+export const getMyAssets = async (employeeId) => {
+  const { data } = await http.get(`/api/employee-assets/my-assets/${employeeId}`);
+  return data;
+};
+
+// Re-assign asset
+export const reassignAsset = async (assetId, payload) => {
+  const { data } = await http.post(`/api/employee-assets/${assetId}/reassign`, payload);
+  return data;
+};
+
 // Create new employee
 export const createEmployee = async (employeeData) => {
   const { data } = await http.post("/api/employees", employeeData);
