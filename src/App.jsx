@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import DashboardLayout from "./components/DashboardLayout";
+import BlogView from "./pages/BlogView";
 import { Toaster } from "sonner";
 import routes from "./route/SidebarRaoute";
 
@@ -41,6 +42,7 @@ function App() {
                 }
               />
             ))}
+            <Route path="/blogs/view/:id" element={<BlogView />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : (

@@ -5,6 +5,8 @@ import { useFont } from "../context/FontContext";
 import { listOrders, updateOrderStatus, createOfflineOrder, deleteOrder, updateOrderDetails } from "../apis/orders";
 import { listProducts } from "../apis/products";
 import { listAmcPlans } from "../apis/amcPlans";
+import Highcharts from "highcharts";
+import HighchartsReact from "highcharts-react-official";
 import {
   FaShoppingCart,
   FaSyncAlt,
@@ -12,6 +14,8 @@ import {
   FaPlus,
   FaTrash,
   FaEdit,
+  FaChartBar,
+  FaChartPie,
 } from "react-icons/fa";
 import { 
     ShieldCheck, 
@@ -289,6 +293,27 @@ export default function OfflineOrders() {
       return id.includes(q) || name.includes(q) || phone.includes(q);
     });
   }, [orders, search, statusFilter]);
+
+  // Chart data
+  const chartData = useMemo(() => {
+    const statusCount = {};
+    STATUS_OPTIONS.forEach(s => statusCount[s] = 0);
+    orders.forEach(o => {
+      const status = o.status || "pending";
+      statusCount[status] = (statusCount[status] || 0) + 1;
+    });
+
+    const paymentMethodCount = {};
+    orders.forEach(o => {
+      const method = o.paymentMethod || "Cash";
+      paymentMethodCount[method] = (paymentMethodCount[method] || 0) + 1;
+    });
+
+    const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+    const avgOrderValue = orders.length > 0 ? totalRevenue / orders.length : 0;
+
+    return { statusCount, paymentMethodCount, totalRevenue, avgOrderValue };
+  }, [orders]);
 
   // Create Order Logic
   const handleAddItem = () => {
@@ -704,6 +729,92 @@ export default function OfflineOrders() {
 
       {/* Invoice Modal */}
       <InvoiceModal order={selectedOrder} isOpen={showInvoiceModal} onClose={() => setShowInvoiceModal(false)} />
+
+      {/* Charts Section */}
+      {!loading && orders.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Status Distribution */}
+          <div
+            className="p-6 rounded-xl border shadow-sm"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaChartPie className="text-purple-600" /> Order Status Distribution
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'pie', backgroundColor: 'transparent', height: 280, animation: { duration: 1000 } },
+                title: { text: '' },
+                credits: { enabled: false },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                      enabled: true,
+                      format: '<b>{point.name}</b>: {point.y}',
+                      style: { fontSize: '11px' }
+                    },
+                    showInLegend: true,
+                    animation: { duration: 1000 }
+                  }
+                },
+                series: [{
+                  name: 'Orders',
+                  colorByPoint: true,
+                  data: Object.entries(chartData.statusCount).map(([name, y]) => ({
+                    name: name.charAt(0).toUpperCase() + name.slice(1),
+                    y,
+                    color: name === 'delivered' ? '#22c55e' : name === 'cancelled' ? '#ef4444' : name === 'shipped' ? '#0ea5e9' : name === 'confirmed' ? '#8b5cf6' : '#94a3b8'
+                  }))
+                }]
+              }}
+            />
+          </div>
+
+          {/* Payment Methods */}
+          <div
+            className="p-6 rounded-xl border shadow-sm"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaChartBar className="text-green-600" /> Payment Methods
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'column', backgroundColor: 'transparent', height: 280, animation: { duration: 1200 } },
+                title: { text: '' },
+                credits: { enabled: false },
+                xAxis: {
+                  categories: Object.keys(chartData.paymentMethodCount),
+                  labels: { style: { color: themeColors.text } }
+                },
+                yAxis: {
+                  min: 0,
+                  title: { text: 'Orders', style: { color: themeColors.text } },
+                  labels: { style: { color: themeColors.text } }
+                },
+                legend: { enabled: false },
+                plotOptions: {
+                  column: {
+                    borderRadius: 8,
+                    dataLabels: { enabled: true },
+                    animation: { duration: 1200 }
+                  }
+                },
+                series: [{
+                  name: 'Orders',
+                  data: Object.values(chartData.paymentMethodCount),
+                  colorByPoint: true,
+                  colors: ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
+                }]
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Orders Table */}
       <div className="p-6 rounded-xl border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>

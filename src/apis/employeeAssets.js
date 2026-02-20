@@ -36,3 +36,15 @@ export const returnAsset = async (id, data) => {
   const response = await http.post(`/api/employee-assets/${id}/return`, data);
   return response.data;
 };
+
+export const getAssetsHistory = async (filters = {}) => {
+  const cleanFilters = {};
+  Object.keys(filters).forEach(key => {
+      if (filters[key] != null && filters[key] !== "") {
+          cleanFilters[key] = filters[key];
+      }
+  });
+  const query = new URLSearchParams(cleanFilters).toString();
+  const response = await http.get(`/api/employee-assets/history?${query}`);
+  return response.data;
+};

@@ -70,3 +70,15 @@ export const likeBlog = async (idOrSlug) => {
   const { data } = await http.post(`/api/blogs/${idOrSlug}/like`);
   return data;
 };
+
+// Public: Unlike blog - POST /api/blogs/:idOrSlug/unlike
+export const unlikeBlog = async (idOrSlug) => {
+  const { data } = await http.post(`/api/blogs/${idOrSlug}/unlike`);
+  return data;
+};
+
+// Public: Get comments - GET /api/blogs/:idOrSlug/comments
+export const getBlogComments = async (idOrSlug) => {
+  const { data } = await http.get(`/api/blogs/${idOrSlug}/comments`);
+  return data;
+};

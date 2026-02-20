@@ -4,10 +4,14 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useAuth } from "../context/AuthContext";
 import { listOrders, updateOrderStatus } from "../apis/orders";
+import Highcharts from "highcharts";
+import HighchartsReact from "highcharts-react-official";
 import {
   FaShoppingCart,
   FaSyncAlt,
   FaSearch,
+  FaChartLine,
+  FaChartPie,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -156,6 +160,62 @@ export default function Orders() {
       );
     });
   }, [orders, search, statusFilter]);
+
+  // Chart data calculations
+  const chartData = useMemo(() => {
+    const onlineOrders = orders.filter(o => o.source !== "offline");
+    
+    // Status distribution
+    const statusCount = {};
+    STATUS_OPTIONS.forEach(s => statusCount[s] = 0);
+    onlineOrders.forEach(o => {
+      const status = o.status || "pending";
+      statusCount[status] = (statusCount[status] || 0) + 1;
+    });
+
+    // Revenue by status
+    const revenueByStatus = {};
+    STATUS_OPTIONS.forEach(s => revenueByStatus[s] = 0);
+    onlineOrders.forEach(o => {
+      const status = o.status || "pending";
+      revenueByStatus[status] += o.total || 0;
+    });
+
+    // Daily orders (last 7 days)
+    const last7Days = [];
+    const dailyOrders = [];
+    const dailyRevenue = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+      last7Days.push(date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }));
+      
+      const dayOrders = onlineOrders.filter(o => 
+        new Date(o.createdAt).toISOString().split('T')[0] === dateStr
+      );
+      dailyOrders.push(dayOrders.length);
+      dailyRevenue.push(dayOrders.reduce((sum, o) => sum + (o.total || 0), 0));
+    }
+
+    // Payment method distribution
+    const paymentMethods = {};
+    onlineOrders.forEach(o => {
+      const method = o.paymentMethod || "COD";
+      paymentMethods[method] = (paymentMethods[method] || 0) + 1;
+    });
+
+    return {
+      statusCount,
+      revenueByStatus,
+      last7Days,
+      dailyOrders,
+      dailyRevenue,
+      paymentMethods,
+      totalRevenue: onlineOrders.reduce((sum, o) => sum + (o.total || 0), 0),
+      totalOrders: onlineOrders.length
+    };
+  }, [orders]);
 
   const statusBadgeStyle = (status) => {
     const base = {
@@ -313,6 +373,92 @@ export default function Orders() {
               {success}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Charts Section */}
+      {!loading && orders.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Order Status Distribution */}
+          <div
+            className="p-6 rounded-xl border shadow-sm"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaChartPie className="text-blue-600" /> Order Status
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'pie', backgroundColor: 'transparent', height: 280, animation: { duration: 1000 } },
+                title: { text: '' },
+                credits: { enabled: false },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                      enabled: true,
+                      format: '<b>{point.name}</b>: {point.y}',
+                      style: { fontSize: '11px' }
+                    },
+                    animation: { duration: 1000 }
+                  }
+                },
+                series: [{
+                  name: 'Orders',
+                  colorByPoint: true,
+                  data: Object.entries(chartData.statusCount).map(([name, y]) => ({
+                    name: name.charAt(0).toUpperCase() + name.slice(1),
+                    y,
+                    color: name === 'delivered' ? '#22c55e' : name === 'cancelled' ? '#ef4444' : name === 'shipped' ? '#0ea5e9' : name === 'confirmed' ? '#8b5cf6' : '#94a3b8'
+                  }))
+                }]
+              }}
+            />
+          </div>
+
+          {/* Daily Orders Trend */}
+          <div
+            className="p-6 rounded-xl border shadow-sm lg:col-span-2"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaChartLine className="text-green-600" /> Last 7 Days Trend
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'areaspline', backgroundColor: 'transparent', height: 280, animation: { duration: 1500 } },
+                title: { text: '' },
+                credits: { enabled: false },
+                xAxis: {
+                  categories: chartData.last7Days,
+                  labels: { style: { color: themeColors.text } }
+                },
+                yAxis: [{
+                  title: { text: 'Orders', style: { color: themeColors.text } },
+                  labels: { style: { color: themeColors.text } }
+                }, {
+                  title: { text: 'Revenue (₹)', style: { color: themeColors.text } },
+                  labels: { style: { color: themeColors.text }, format: '₹{value}' },
+                  opposite: true
+                }],
+                legend: { itemStyle: { color: themeColors.text } },
+                plotOptions: {
+                  areaspline: {
+                    fillOpacity: 0.3,
+                    marker: { enabled: true, radius: 4 },
+                    animation: { duration: 1500 }
+                  }
+                },
+                series: [
+                  { name: 'Orders', data: chartData.dailyOrders, color: '#3b82f6', yAxis: 0 },
+                  { name: 'Revenue', data: chartData.dailyRevenue, color: '#10b981', yAxis: 1 }
+                ]
+              }}
+            />
+          </div>
         </div>
       )}
 

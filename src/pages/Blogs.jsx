@@ -4,13 +4,19 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useAuth } from "../context/AuthContext";
 import RichTextEditor from "../components/RichTextEditor";
+import Highcharts from 'highcharts';
+import HighchartsReact from 'highcharts-react-official';
+import { BlogAnalyticsCharts } from "../components/BlogAnalyticsCharts";
 import {
   getAllBlogs,
   createBlog,
   updateBlog,
   deleteBlog,
   likeBlog,
+  unlikeBlog,
+  getBlogComments,
 } from "../apis/blogs";
+import { useNavigate } from "react-router-dom";
 import {
   FaBlog,
   FaPlus,
@@ -52,6 +58,7 @@ export default function Blogs() {
   const { themeColors } = useTheme();
   const { currentFont } = useFont();
   const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
 
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +70,8 @@ export default function Blogs() {
   const [editing, setEditing] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewBlog, setViewBlog] = useState(null);
+  const [blogComments, setBlogComments] = useState([]);
+  const [loadingComments, setLoadingComments] = useState(false);
 
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -74,6 +83,10 @@ export default function Blogs() {
 
   // Content state for rich text editor
   const [editorContent, setEditorContent] = useState("");
+
+  // Image files
+  const [thumbnailFile, setThumbnailFile] = useState(null);
+  const [coverFile, setCoverFile] = useState(null);
 
   const fetchBlogs = async (page = 1) => {
     try {
@@ -104,6 +117,8 @@ export default function Blogs() {
     setTagsList([""]);
     setKeywordsList([""]);
     setEditorContent("");
+    setThumbnailFile(null);
+    setCoverFile(null);
   };
 
   const openAddModal = () => {
@@ -291,17 +306,48 @@ export default function Blogs() {
     if (!idOrSlug) return;
 
     try {
-      await likeBlog(idOrSlug);
+      const likedBlogs = JSON.parse(localStorage.getItem('adminLikedBlogs') || '[]');
+      const isLiked = likedBlogs.includes(idOrSlug);
+
+      if (isLiked) {
+        await unlikeBlog(idOrSlug);
+        const updatedLikes = likedBlogs.filter(id => id !== idOrSlug);
+        localStorage.setItem('adminLikedBlogs', JSON.stringify(updatedLikes));
+      } else {
+        await likeBlog(idOrSlug);
+        likedBlogs.push(idOrSlug);
+        localStorage.setItem('adminLikedBlogs', JSON.stringify(likedBlogs));
+      }
+
       setBlogs((prev) =>
         prev.map((b) =>
           (b._id || b.id || b.slug) === (blog._id || blog.id || blog.slug)
-            ? { ...b, likes: (b.likes || 0) + 1 }
+            ? { ...b, likes: isLiked ? Math.max(0, (b.likes || 0) - 1) : (b.likes || 0) + 1 }
             : b
         )
       );
     } catch (e) {
-      console.error("Failed to like blog:", e);
+      console.error("Failed to like/unlike blog:", e);
     }
+  };
+
+  const fetchBlogComments = async (blog) => {
+    try {
+      setLoadingComments(true);
+      const idOrSlug = blog.slug || blog._id || blog.id;
+      const data = await getBlogComments(idOrSlug);
+      setBlogComments(data.comments || []);
+    } catch (error) {
+      console.error('Failed to fetch comments:', error);
+      setBlogComments([]);
+    } finally {
+      setLoadingComments(false);
+    }
+  };
+
+  const handleViewBlog = (blog) => {
+    sessionStorage.setItem('viewBlog', JSON.stringify(blog));
+    navigate(`/blogs/view/${blog._id || blog.id}`);
   };
 
   const handleSubmit = async (e) => {
@@ -312,8 +358,14 @@ export default function Blogs() {
       return;
     }
 
+    // Validation
     if (!form.title.trim()) {
       setError("Blog title is required.");
+      return;
+    }
+
+    if (form.title.trim().length < 5) {
+      setError("Title must be at least 5 characters long.");
       return;
     }
 
@@ -322,51 +374,89 @@ export default function Blogs() {
       return;
     }
 
+    if (editorContent.trim().length < 50) {
+      setError("Content must be at least 50 characters long.");
+      return;
+    }
+
+    if (!form.category.trim()) {
+      setError("Category is required.");
+      return;
+    }
+
+    if (!thumbnailFile && !form.thumbnailImage.trim()) {
+      setError("Thumbnail image is required (upload file or provide URL).");
+      return;
+    }
+
+    if (form.thumbnailImage.trim() && !form.thumbnailImage.match(/^https?:\/\/.+/)) {
+      setError("Thumbnail image URL must be valid (start with http:// or https://).");
+      return;
+    }
+
+    if (form.coverImage.trim() && !form.coverImage.match(/^https?:\/\/.+/)) {
+      setError("Cover image URL must be valid (start with http:// or https://).");
+      return;
+    }
+
+    if (form.shortDescription.trim() && form.shortDescription.trim().length > 300) {
+      setError("Short description must not exceed 300 characters.");
+      return;
+    }
+
+    if (form.metaDescription.trim() && form.metaDescription.trim().length > 160) {
+      setError("Meta description must not exceed 160 characters.");
+      return;
+    }
+
+    const cleanTags = tagsList
+      .map((tag) => tag.trim())
+      .filter((tag) => tag.length);
+
+    if (cleanTags.length === 0) {
+      setError("At least one tag is required.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
       setSuccess("");
 
-      const cleanTags = tagsList
-        .map((tag) => tag.trim())
-        .filter((tag) => tag.length);
-
       const cleanKeywords = keywordsList
         .map((keyword) => keyword.trim())
         .filter((keyword) => keyword.length);
 
-      const blogData = {
-        title: form.title.trim(),
-        shortDescription: form.shortDescription.trim(),
-        content: editorContent.trim(),
-        thumbnailImage: form.thumbnailImage.trim(),
-        coverImage: form.coverImage.trim(),
-        category: form.category.trim(),
-        tags: cleanTags,
-        metaTitle: form.metaTitle.trim(),
-        metaDescription: form.metaDescription.trim(),
-        metaKeywords: cleanKeywords,
-        isPublished: form.isPublished,
-        isFeatured: form.isFeatured,
-      };
+      const formData = new FormData();
+      formData.append("title", form.title.trim());
+      formData.append("shortDescription", form.shortDescription.trim());
+      formData.append("content", editorContent.trim());
+      formData.append("category", form.category.trim());
+      formData.append("tags", cleanTags.join(","));
+      formData.append("metaTitle", form.metaTitle.trim() || form.title.trim());
+      formData.append("metaDescription", form.metaDescription.trim());
+      formData.append("metaKeywords", cleanKeywords.join(","));
+      formData.append("isPublished", form.isPublished);
+      formData.append("isFeatured", form.isFeatured);
 
-      // Remove empty string fields
-      Object.keys(blogData).forEach(key => {
-        if (blogData[key] === '') {
-          delete blogData[key];
-        }
-      });
+      if (thumbnailFile) {
+        formData.append("thumbnailImage", thumbnailFile);
+      } else if (form.thumbnailImage) {
+        formData.append("thumbnailImage", form.thumbnailImage);
+      }
 
-      console.log('Blog data being sent:', blogData); // Debug log
+      if (coverFile) {
+        formData.append("coverImage", coverFile);
+      } else if (form.coverImage) {
+        formData.append("coverImage", form.coverImage);
+      }
 
       if (editing) {
-        // Use ObjectId (_id) for update operations
         const blogId = editing._id || editing.id;
         if (!blogId) {
           throw new Error("Missing blog ObjectId for update.");
         }
-        console.log('Updating blog with ObjectId:', blogId);
-        await updateBlog(blogId, blogData);
+        await updateBlog(blogId, formData);
         setSuccess("Blog updated successfully.");
         Swal.fire({
           icon: "success",
@@ -376,7 +466,7 @@ export default function Blogs() {
           showConfirmButton: false,
         });
       } else {
-        await createBlog(blogData);
+        await createBlog(formData);
         setSuccess("Blog created successfully.");
         Swal.fire({
           icon: "success",
@@ -640,9 +730,9 @@ export default function Blogs() {
                   {/* Tags */}
                   {Array.isArray(blog.tags) && blog.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {blog.tags.slice(0, 3).map((tag) => (
+                      {blog.tags.slice(0, 3).map((tag, idx) => (
                         <span
-                          key={tag}
+                          key={`${tag}-${idx}`}
                           className="px-2 py-0.5 rounded-full text-[11px]"
                           style={{
                             backgroundColor: themeColors.background + "60",
@@ -684,7 +774,7 @@ export default function Blogs() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setViewBlog(blog)}
+                        onClick={() => handleViewBlog(blog)}
                         className="px-2 py-1 rounded-lg border text-[11px] flex items-center gap-1"
                         style={{
                           borderColor: themeColors.border,
@@ -876,7 +966,7 @@ export default function Blogs() {
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Short Description
+                    Short Description <span className="text-xs text-slate-500">(max 300 chars)</span>
                   </label>
                   <textarea
                     id="shortDescription"
@@ -884,6 +974,7 @@ export default function Blogs() {
                     value={form.shortDescription}
                     onChange={handleChange}
                     rows={2}
+                    maxLength={300}
                     className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 resize-none"
                     style={{
                       backgroundColor: themeColors.background,
@@ -892,6 +983,7 @@ export default function Blogs() {
                     }}
                     placeholder="Discover the hottest eyewear trends for this year"
                   />
+                  <p className="text-xs text-slate-500 mt-1">{form.shortDescription.length}/300</p>
                 </div>
 
                 {/* Content */}
@@ -916,7 +1008,7 @@ export default function Blogs() {
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Category
+                    Category <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="category"
@@ -924,6 +1016,7 @@ export default function Blogs() {
                     type="text"
                     value={form.category}
                     onChange={handleChange}
+                    required
                     className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
                     style={{
                       backgroundColor: themeColors.background,
@@ -937,51 +1030,75 @@ export default function Blogs() {
                 {/* Thumbnail Image */}
                 <div>
                   <label
-                    htmlFor="thumbnailImage"
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Thumbnail Image URL
+                    Thumbnail Image <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    id="thumbnailImage"
-                    name="thumbnailImage"
-                    type="url"
-                    value={form.thumbnailImage}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                    placeholder="https://example.com/thumb.jpg"
-                  />
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setThumbnailFile(e.target.files[0])}
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    />
+                    <input
+                      id="thumbnailImage"
+                      name="thumbnailImage"
+                      type="url"
+                      value={form.thumbnailImage}
+                      onChange={handleChange}
+                      placeholder="Or paste URL (https://...)"
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Cover Image */}
                 <div>
                   <label
-                    htmlFor="coverImage"
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Cover Image URL
+                    Cover Image (Optional)
                   </label>
-                  <input
-                    id="coverImage"
-                    name="coverImage"
-                    type="url"
-                    value={form.coverImage}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                    placeholder="https://example.com/cover.jpg"
-                  />
+                  <div className="space-y-2">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setCoverFile(e.target.files[0])}
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    />
+                    <input
+                      id="coverImage"
+                      name="coverImage"
+                      type="url"
+                      value={form.coverImage}
+                      onChange={handleChange}
+                      placeholder="Or paste URL (https://...)"
+                      className="w-full px-3 py-2 rounded-lg border text-sm"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Tags */}
@@ -990,7 +1107,7 @@ export default function Blogs() {
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Tags
+                    Tags <span className="text-red-500">*</span>
                   </label>
                   <div className="space-y-2">
                     {tagsList.map((tag, idx) => (
@@ -1122,7 +1239,7 @@ export default function Blogs() {
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Meta Description
+                    Meta Description <span className="text-xs text-slate-500">(max 160 chars)</span>
                   </label>
                   <textarea
                     id="metaDescription"
@@ -1130,6 +1247,7 @@ export default function Blogs() {
                     value={form.metaDescription}
                     onChange={handleChange}
                     rows={2}
+                    maxLength={160}
                     className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 resize-none"
                     style={{
                       backgroundColor: themeColors.background,
@@ -1138,6 +1256,7 @@ export default function Blogs() {
                     }}
                     placeholder="Complete guide to latest eyewear trends"
                   />
+                  <p className="text-xs text-slate-500 mt-1">{form.metaDescription.length}/160</p>
                 </div>
 
                 {/* Checkboxes */}
@@ -1177,8 +1296,7 @@ export default function Blogs() {
                   </label>
                 </div>
               </div>
-
-              </div>
+            </div>
 
               {/* Footer Actions */}
               <div className="px-8 py-5 border-t border-slate-100 flex items-center justify-end gap-3 bg-slate-50/50">
@@ -1271,6 +1389,12 @@ export default function Blogs() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                   {/* Main Content */}
                   <div className="lg:col-span-2 space-y-8">
+                    {/* Analytics Section */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4">Blog Analytics</h4>
+                      <BlogAnalyticsCharts blog={viewBlog} comments={blogComments} />
+                    </div>
+
                     {viewBlog.shortDescription && (
                       <div className="relative">
                         <div className="absolute -left-4 top-0 bottom-0 w-1 bg-blue-600 rounded-full opacity-20" />
@@ -1339,9 +1463,9 @@ export default function Blogs() {
                             <FaTags size={12} /> Tags
                           </p>
                           <div className="flex flex-wrap gap-2">
-                            {viewBlog.tags.map((tag) => (
+                            {viewBlog.tags.map((tag, idx) => (
                               <span
-                                key={tag}
+                                key={`${tag}-${idx}`}
                                 className="px-3 py-1 rounded-xl text-[11px] font-bold bg-white border border-slate-100 shadow-sm"
                                 style={{ color: themeColors.text }}
                               >
@@ -1351,6 +1475,30 @@ export default function Blogs() {
                           </div>
                         </div>
                       )}
+
+                      {/* Comments Section */}
+                      <div className="pt-6 border-t border-slate-100">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Comments ({blogComments.length})</p>
+                        {loadingComments ? (
+                          <p className="text-xs text-slate-500">Loading...</p>
+                        ) : blogComments.length === 0 ? (
+                          <p className="text-xs text-slate-500">No comments yet.</p>
+                        ) : (
+                          <div className="space-y-3 max-h-64 overflow-y-auto">
+                            {blogComments.map((comment) => (
+                              <div key={comment._id} className="p-3 bg-white rounded-xl border border-slate-100">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-bold text-xs" style={{ color: themeColors.text }}>{comment.name}</span>
+                                  <span className="text-[10px] text-slate-400">
+                                    {new Date(comment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-slate-600 leading-relaxed">{comment.comment}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {viewBlog.thumbnailImage && (

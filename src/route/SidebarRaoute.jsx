@@ -16,6 +16,7 @@ import {
   FaUndo,
   FaDolly,
   FaWrench,
+  FaTicketAlt,
 } from "react-icons/fa";
 
 // pages
@@ -36,11 +37,15 @@ const AMCManagement = lazy(() => import("../pages/AMCManagement"));
 const AmcPlans = lazy(() => import("../pages/AmcPlans"));
 const ServiceRequests = lazy(() => import("../pages/ServiceRequests"));
 const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
+const AssetsHistory = lazy(() => import("../pages/AssetsHistory"));
 const Notifications = lazy(() => import("../pages/Notifications"));
 const Refunds = lazy(() => import("../pages/Refunds"));
+const Certificates = lazy(() => import("../pages/Certificates"));
+const Reviews = lazy(() => import("../pages/Reviews"));
 const StockManagement = lazy(() => import("../pages/StockManagement"));
 const ROParts = lazy(() => import("../pages/ROParts"));
 const RentalPlanManagement = lazy(() => import("../pages/RentalPlanManagement"));
+const AssignTicket = lazy(() => import("../pages/AssignTicket"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
@@ -64,13 +69,17 @@ const routes = [
   { path: "/transactions", component: Transactions, name: "Transactions", icon: FaCoins },
   { path: "/enquiries", component: Enquiries, name: "Enquiries", icon: FaEnvelopeOpenText },
   { path: "/sliders", component: Sliders, name: "Sliders", icon: FaImages },
+  { path: "/certificates", component: Certificates, name: "Certificates", icon: FaShieldAlt },
+  { path: "/reviews", component: Reviews, name: "Reviews", icon: FaBlog },
   { path: "/blogs", component: Blogs, name: "Blogs", icon: FaBlog },
   { path: "/employees", component: Employees, name: "Employees", icon: FaUserTie },
   { path: "/employee-assets", component: EmployeeAssets, name: "Employee Assets", icon: FaArchive },
+  { path: "/assets-history", component: AssetsHistory, name: "Assets History", icon: FaArchive },
   { path: "/customers", component: Customers, name: "Customers", icon: FaUsers },
+  { path: "/amc-plans", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
   { path: "/amc", component: AMCManagement, name: "AMC Management", icon: FaShieldAlt },
-  { path: "/amc-plans", component: AmcPlans, name: "Master Plans", icon: FaShieldAlt },
   { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench },
+  { path: "/assign-ticket", component: AssignTicket, name: "Assign Tickets", icon: FaTicketAlt },
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },
   { path: "/refunds", component: Refunds, name: "Refund Requests", icon: FaUndo },
   { path: "/change-password", component: ChangePassword, name: "Change Password", icon: FaKey },

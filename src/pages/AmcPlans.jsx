@@ -3,6 +3,8 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import http from "../apis/http"; 
+import { assignProductsToAmc, getAmcProducts } from "../apis/amcPlans";
+import { listProducts } from "../apis/products";
 import {
   FaShieldAlt,
   FaPlus,
@@ -11,6 +13,7 @@ import {
   FaCheck,
   FaTimes,
   FaStar,
+  FaBox,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -23,6 +26,10 @@ export default function AmcPlans() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState(null);
+  const [allProducts, setAllProducts] = useState([]);
+  const [selectedProducts, setSelectedProducts] = useState([]);
 
   const [form, setForm] = useState({
     name: "",
@@ -36,6 +43,7 @@ export default function AmcPlans() {
 
   useEffect(() => {
     fetchPlans();
+    fetchProducts();
   }, []);
 
   const fetchPlans = async () => {
@@ -50,6 +58,15 @@ export default function AmcPlans() {
       Swal.fire("Error", "Failed to fetch plans", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const products = await listProducts();
+      setAllProducts(products);
+    } catch (error) {
+      console.error("Error fetching products", error);
     }
   };
 
@@ -113,6 +130,36 @@ export default function AmcPlans() {
       isPopular: false,
       isActive: true,
     });
+  };
+
+  const handleAssignProducts = async (planId) => {
+    setSelectedPlanId(planId);
+    try {
+      const response = await getAmcProducts(planId);
+      const ids = response.productIds?.map(p => typeof p === 'string' ? p : p._id) || [];
+      setSelectedProducts(ids);
+    } catch (error) {
+      setSelectedProducts([]);
+    }
+    setIsProductModalOpen(true);
+  };
+
+  const handleSaveProducts = async () => {
+    try {
+      await assignProductsToAmc(selectedPlanId, selectedProducts);
+      Swal.fire("Success", "Products assigned successfully", "success");
+      setIsProductModalOpen(false);
+    } catch (error) {
+      Swal.fire("Error", "Failed to assign products", "error");
+    }
+  };
+
+  const toggleProduct = (productId) => {
+    setSelectedProducts(prev => 
+      prev.includes(productId) 
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+    );
   };
 
   return (
@@ -179,6 +226,9 @@ export default function AmcPlans() {
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button onClick={() => handleAssignProducts(plan._id)} className="p-2 text-green-600 hover:bg-green-50 rounded" title="Assign Products">
+                          <FaBox />
+                        </button>
                         <button onClick={() => handleEdit(plan)} className="p-2 text-blue-600 hover:bg-blue-50 rounded">
                           <FaEdit />
                         </button>
@@ -279,6 +329,47 @@ export default function AmcPlans() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Product Assignment Modal */}
+      {isProductModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: themeColors?.surface, color: themeColors?.text }}>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <FaBox /> Assign Products to AMC Plan
+            </h2>
+            <div className="space-y-2 mb-4">
+              {allProducts.map((product) => (
+                <label key={product._id} className="flex items-center gap-3 p-3 border rounded hover:bg-gray-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedProducts.includes(product._id)}
+                    onChange={() => toggleProduct(product._id)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <div className="font-medium">{product.name}</div>
+                    <div className="text-sm opacity-60">₹{product.price}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <button
+                onClick={() => setIsProductModalOpen(false)}
+                className="px-4 py-2 rounded bg-gray-200 text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveProducts}
+                className="px-4 py-2 rounded bg-green-600 text-white"
+              >
+                Save Products
+              </button>
+            </div>
           </div>
         </div>
       )}

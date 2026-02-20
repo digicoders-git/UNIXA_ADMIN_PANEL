@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { listServiceRequests, updateServiceRequest } from "../apis/serviceRequest";
+import { getEmployees } from "../apis/employees";
+import http from "../apis/http";
 import {
   FaWrench,
   FaSearch,
@@ -10,7 +12,8 @@ import {
   FaCheckCircle,
   FaClock,
   FaExclamationCircle,
-  FaClipboardList
+  FaClipboardList,
+  FaTrash
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -19,12 +22,15 @@ export default function ServiceRequests() {
   const { currentFont } = useFont();
 
   const [requests, setRequests] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
   const [updateForm, setUpdateForm] = useState({
       status: "",
       assignedTechnician: "",
@@ -34,15 +40,39 @@ export default function ServiceRequests() {
 
   useEffect(() => {
     fetchRequests();
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      const data = await getEmployees();
+      // Filter only employees, exclude managers
+      const employeesOnly = data.filter(emp => emp.role === 'Employee' || emp.role === 'employee' || emp.role === 'Technician' || emp.role === 'technician');
+      setEmployees(employeesOnly);
+    } catch (err) {
+      console.error("Error fetching employees:", err);
+    }
+  };
 
   const fetchRequests = async () => {
     setLoading(true);
     try {
       const data = await listServiceRequests();
-      setRequests(data);
+      console.log("Service Requests Data:", data);
+      
+      // Convert _id to readable ticket format if complaintId is missing
+      const processedData = data.map((req, index) => {
+        if (!req.ticketId || req.ticketId.length > 20) {
+          // Generate sequential ticket ID
+          const ticketNum = String(index + 1).padStart(3, '0');
+          return { ...req, displayTicketId: `TKT-${ticketNum}` };
+        }
+        return { ...req, displayTicketId: req.ticketId };
+      });
+      
+      setRequests(processedData);
     } catch (err) {
-      console.error(err);
+      console.error("Fetch error:", err);
       Swal.fire("Error", "Failed to load service requests", "error");
     } finally {
       setLoading(false);
@@ -51,6 +81,7 @@ export default function ServiceRequests() {
 
   const openUpdateModal = (req) => {
       setSelectedRequest(req);
+      setEmployeeSearch(req.assignedTechnician || "");
       setUpdateForm({
           status: req.status || "Open",
           assignedTechnician: req.assignedTechnician || "",
@@ -62,18 +93,21 @@ export default function ServiceRequests() {
 
   const handleUpdateSubmit = async (e) => {
       e.preventDefault();
-      const id = selectedRequest.ticketId || selectedRequest.complaintId;
-      console.log("Updating request with solid ID:", id);
-
-      if (!id) {
-          Swal.fire("Error", "Ticket ID is missing. Please refresh and try again.", "error");
+      const id = selectedRequest.ticketId || selectedRequest.complaintId || selectedRequest._id;
+      
+      if (!id || id === "undefined") {
+          console.error("No valid ID found in selectedRequest:", selectedRequest);
+          Swal.fire("Error", "Cannot identify the ticket. Please refresh and try again.", "error");
           return;
       }
+      
+      console.log("Updating request with ID:", id);
 
       try {
           await updateServiceRequest(id, updateForm);
           Swal.fire("Success", "Request updated successfully", "success");
           setIsModalOpen(false);
+          setShowEmployeeDropdown(false);
           fetchRequests();
       } catch (err) {
           console.error("Update failed:", err);
@@ -81,10 +115,35 @@ export default function ServiceRequests() {
       }
   };
 
+  const handleDelete = async (req) => {
+    const result = await Swal.fire({
+      title: 'Delete Service Request?',
+      text: `Are you sure you want to delete ticket ${req.displayTicketId || req.ticketId}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const id = req.ticketId || req.complaintId || req._id;
+        await http.delete(`/api/customers/complaints/${id}`);
+        Swal.fire('Deleted!', 'Service request has been deleted.', 'success');
+        fetchRequests();
+      } catch (err) {
+        console.error('Delete failed:', err);
+        Swal.fire('Error', 'Failed to delete request: ' + (err.response?.data?.message || 'Server Error'), 'error');
+      }
+    }
+  };
+
   const filteredRequests = requests.filter(req => {
+      const ticketId = req.ticketId || req.complaintId || '';
       const matchesSearch = 
           req.customerName?.toLowerCase().includes(search.toLowerCase()) ||
-          req.ticketId?.toLowerCase().includes(search.toLowerCase()) ||
+          ticketId.toLowerCase().includes(search.toLowerCase()) ||
           req.type?.toLowerCase().includes(search.toLowerCase());
       
       const matchesStatus = statusFilter === "All" || req.status === statusFilter;
@@ -161,7 +220,7 @@ export default function ServiceRequests() {
                           <th className="p-4">Priority</th>
                           <th className="p-4">Status</th>
                           <th className="p-4">Technician</th>
-                          <th className="p-4 text-right">Action</th>
+                          <th className="p-4 text-right">Actions</th>
                       </tr>
                   </thead>
                   <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
@@ -171,8 +230,8 @@ export default function ServiceRequests() {
                           <tr><td colSpan="7" className="p-8 text-center opacity-50">No requests found.</td></tr>
                       ) : (
                           filteredRequests.map(req => (
-                              <tr key={req.ticketId} className="hover:bg-black/5 transition">
-                                  <td className="p-4 font-mono text-xs font-bold">{req.ticketId}</td>
+                              <tr key={req.ticketId || req.complaintId || req._id} className="hover:bg-black/5 transition">
+                                  <td className="p-4 font-mono text-xs font-bold">{req.displayTicketId || req.ticketId || req.complaintId || 'N/A'}</td>
                                   <td className="p-4">
                                       <div className="font-bold">{req.customerName}</div>
                                       <div className="text-xs opacity-60">{req.customerMobile}</div>
@@ -204,12 +263,20 @@ export default function ServiceRequests() {
                                       )}
                                   </td>
                                   <td className="p-4 text-right">
-                                      <button 
-                                          onClick={() => openUpdateModal(req)}
-                                          className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto"
-                                      >
-                                          Update
-                                      </button>
+                                      <div className="flex justify-end gap-2">
+                                          <button 
+                                              onClick={() => openUpdateModal(req)}
+                                              className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
+                                          >
+                                              Update
+                                          </button>
+                                          <button 
+                                              onClick={() => handleDelete(req)}
+                                              className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
+                                          >
+                                              <FaTrash /> Delete
+                                          </button>
+                                      </div>
                                   </td>
                               </tr>
                           ))
@@ -227,7 +294,7 @@ export default function ServiceRequests() {
                   style={{ backgroundColor: themeColors.surface, color: themeColors.text }}
               >
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-3" style={{ borderColor: themeColors.border }}>
-                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.ticketId || selectedRequest.complaintId}
+                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.displayTicketId || selectedRequest.ticketId || selectedRequest.complaintId}
                   </h2>
                   
                   <form onSubmit={handleUpdateSubmit} className="space-y-4">
@@ -268,14 +335,49 @@ export default function ServiceRequests() {
 
                       <div>
                           <label className="block text-xs font-bold uppercase opacity-60 mb-1">Assigned Technician</label>
-                          <input 
-                              type="text"
-                              value={updateForm.assignedTechnician}
-                              onChange={e => setUpdateForm({...updateForm, assignedTechnician: e.target.value})}
-                              placeholder="Technician Name"
-                              className="w-full p-2.5 rounded-lg border outline-none focus:ring-2 focus:ring-blue-500"
-                              style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}
-                          />
+                          <div className="relative">
+                              <div className="relative">
+                                  <FaSearch className="absolute left-3 top-3 opacity-40 text-sm" />
+                                  <input 
+                                      type="text"
+                                      value={employeeSearch}
+                                      onChange={(e) => {
+                                          setEmployeeSearch(e.target.value);
+                                          setShowEmployeeDropdown(true);
+                                      }}
+                                      onFocus={() => setShowEmployeeDropdown(true)}
+                                      placeholder="Search technician..."
+                                      className="w-full pl-10 pr-4 p-2.5 rounded-lg border outline-none focus:ring-2 focus:ring-blue-500"
+                                      style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}
+                                  />
+                              </div>
+                              {showEmployeeDropdown && (
+                                  <div 
+                                      className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                                      style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+                                  >
+                                      {employees
+                                          .filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase()))
+                                          .map((emp, index) => (
+                                              <div
+                                                  key={emp._id || index}
+                                                  onClick={() => {
+                                                      setEmployeeSearch(emp.name);
+                                                      setUpdateForm({...updateForm, assignedTechnician: emp.name});
+                                                      setShowEmployeeDropdown(false);
+                                                  }}
+                                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer transition flex items-center gap-2"
+                                              >
+                                                  <FaUserCog className="text-blue-600" />
+                                                  <span className="font-medium">{emp.name}</span>
+                                              </div>
+                                          ))}
+                                      {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
+                                          <div className="px-4 py-2 text-center opacity-50 text-sm">No employees found</div>
+                                      )}
+                                  </div>
+                              )}
+                          </div>
                       </div>
 
                       <div>

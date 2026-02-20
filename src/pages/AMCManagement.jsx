@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { getAMCDashboard, createAMC, renewAMC, getCustomers } from "../apis/customers"; // Added getCustomers for Create search
+import Highcharts from "highcharts";
+import HighchartsReact from "highcharts-react-official";
 import {
   FaShieldAlt,
   FaSearch,
@@ -15,7 +17,8 @@ import {
   FaCalendarAlt,
   FaPlus,
   FaEye,
-  FaUserCog
+  FaUserCog,
+  FaChartPie
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -24,7 +27,7 @@ export default function AMCManagement() {
   const { currentFont } = useFont();
 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({ stats: {}, customers: [] });
+  const [data, setData] = useState({ stats: {}, customers: [], productStats: [] });
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
   
@@ -51,6 +54,8 @@ export default function AMCManagement() {
   // Customer Search for Create Modal
   const [customerSearch, setCustomerSearch] = useState("");
   const [customerOptions, setCustomerOptions] = useState([]);
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [allCustomers, setAllCustomers] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -67,6 +72,13 @@ export default function AMCManagement() {
       }
   }, [customerSearch, isCreateModalOpen]);
 
+  // Load all customers when modal opens
+  useEffect(() => {
+      if(isCreateModalOpen) {
+          getCustomers("").then(res => setAllCustomers(res || []));
+      }
+  }, [isCreateModalOpen]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -75,9 +87,17 @@ export default function AMCManagement() {
           search: search
       };
       const res = await getAMCDashboard(filters);
+      console.log('AMC Dashboard Data:', res);
+      console.log('Product Stats:', res.productStats);
+      
+      // Fallback for testing if no product stats
+      if (!res.productStats || res.productStats.length === 0) {
+        console.warn('No product stats found. Charts will not be displayed.');
+      }
+      
       setData(res);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching AMC data:', err);
     } finally {
       setLoading(false);
     }
@@ -211,6 +231,84 @@ export default function AMCManagement() {
         />
       </div>
 
+      {/* Charts Section */}
+      {!loading && data.productStats && data.productStats.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Product-wise AMC Distribution */}
+          <div
+            className="p-6 rounded-xl border shadow-sm"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaChartPie className="text-blue-600" /> Product-wise AMC Distribution
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'pie', backgroundColor: 'transparent', height: 300 },
+                title: { text: '' },
+                credits: { enabled: false },
+                plotOptions: {
+                  pie: {
+                    allowPointSelect: true,
+                    cursor: 'pointer',
+                    dataLabels: {
+                      enabled: true,
+                      format: '<b>{point.name}</b>: {point.y}'
+                    }
+                  }
+                },
+                series: [{
+                  name: 'AMCs',
+                  colorByPoint: true,
+                  data: data.productStats.map(p => ({ name: p.productName, y: p.count }))
+                }]
+              }}
+            />
+          </div>
+
+          {/* AMC Status by Product */}
+          <div
+            className="p-6 rounded-xl border shadow-sm"
+            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+          >
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2" style={{ color: themeColors.text }}>
+              <FaShieldAlt className="text-green-600" /> AMC Status Overview
+            </h3>
+            <HighchartsReact
+              highcharts={Highcharts}
+              options={{
+                chart: { type: 'column', backgroundColor: 'transparent', height: 300 },
+                title: { text: '' },
+                credits: { enabled: false },
+                xAxis: {
+                  categories: data.productStats.map(p => p.productName),
+                  labels: { style: { color: themeColors.text } }
+                },
+                yAxis: {
+                  min: 0,
+                  title: { text: 'Count', style: { color: themeColors.text } },
+                  labels: { style: { color: themeColors.text } },
+                  stackLabels: { enabled: true }
+                },
+                legend: { itemStyle: { color: themeColors.text } },
+                plotOptions: {
+                  column: {
+                    stacking: 'normal',
+                    dataLabels: { enabled: true }
+                  }
+                },
+                series: [
+                  { name: 'Active', data: data.productStats.map(p => p.active || 0), color: '#10b981' },
+                  { name: 'Expiring', data: data.productStats.map(p => p.expiring || 0), color: '#f59e0b' },
+                  { name: 'Expired', data: data.productStats.map(p => p.expired || 0), color: '#ef4444' }
+                ]
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Filters & Actions */}
       <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
         <div 
@@ -263,9 +361,10 @@ export default function AMCManagement() {
             >
               <tr>
                 <th className="p-4">AMC ID / Customer</th>
-                <th className="p-4">Plan Details</th>
+                <th className="p-4">Product / Plan</th>
                 <th className="p-4">Duration</th>
                 <th className="p-4">Usage</th>
+                <th className="p-4">Days Left</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Action</th>
               </tr>
@@ -286,8 +385,13 @@ export default function AMCManagement() {
               ) : (
                 data.customers.map((cust) => {
                     const endDate = new Date(cust.amcDetails.endDate);
-                    const isExpired = endDate < new Date();
-                    const daysLeft = Math.ceil((endDate - new Date())/(1000*60*60*24));
+                    const startDate = new Date(cust.amcDetails.startDate);
+                    const today = new Date();
+                    const isExpired = endDate < today;
+                    const daysLeft = Math.ceil((endDate - today)/(1000*60*60*24));
+                    const totalDays = Math.ceil((endDate - startDate)/(1000*60*60*24));
+                    const daysUsed = totalDays - daysLeft;
+                    const timeProgress = (daysUsed / totalDays) * 100;
 
                     return (
                         <tr 
@@ -301,10 +405,10 @@ export default function AMCManagement() {
                             <div className="text-xs opacity-60 flex items-center gap-1"><FaUserCog size={10} /> {cust.amcDetails.assignedTechnician || 'Unassigned'}</div>
                         </td>
                         <td className="p-4">
-                            <span className="font-medium text-blue-500 block">{cust.amcDetails.planName}</span>
-                            <span className="text-xs opacity-70">
+                            <div className="font-medium text-blue-600">
                                 {cust.purifiers?.[0]?.brand} {cust.purifiers?.[0]?.model}
-                            </span>
+                            </div>
+                            <span className="text-xs opacity-70 block mt-1">{cust.amcDetails.planName}</span>
                         </td>
                         <td className="p-4">
                             <div className="flex flex-col text-xs opacity-90">
@@ -315,11 +419,11 @@ export default function AMCManagement() {
                         </td>
                         <td className="p-4">
                             <div className="flex flex-col gap-1 text-xs">
-                                <div className="flex justify-between w-20">
-                                    <span>Svcs:</span>
+                                <div className="flex justify-between w-24">
+                                    <span>Services:</span>
                                     <span className="font-bold">{cust.amcDetails.servicesUsed}/{cust.amcDetails.servicesTotal}</span>
                                 </div>
-                                <div className="w-20 bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                                <div className="w-24 bg-gray-200 h-1.5 rounded-full overflow-hidden">
                                     <div 
                                         className="bg-blue-500 h-full" 
                                         style={{ width: `${(cust.amcDetails.servicesUsed/cust.amcDetails.servicesTotal)*100}%` }}
@@ -328,10 +432,22 @@ export default function AMCManagement() {
                             </div>
                         </td>
                         <td className="p-4">
+                            <div className="flex flex-col gap-1 text-xs">
+                                <span className="font-bold">{isExpired ? 'Expired' : `${daysLeft} days`}</span>
+                                <div className="w-20 bg-gray-200 h-1.5 rounded-full overflow-hidden">
+                                    <div 
+                                        className={`h-full ${isExpired ? 'bg-red-500' : daysLeft <= 30 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                                        style={{ width: `${Math.min(timeProgress, 100)}%` }}
+                                    ></div>
+                                </div>
+                                <span className="opacity-60">{Math.round(timeProgress)}% used</span>
+                            </div>
+                        </td>
+                        <td className="p-4">
                             {isExpired ? (
                                 <span className="px-2 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-xs font-bold">Expired</span>
                             ) : daysLeft <= 30 ? (
-                                <span className="px-2 py-1 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 text-xs font-bold">Expiring ({daysLeft}d)</span>
+                                <span className="px-2 py-1 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 text-xs font-bold">Expiring</span>
                             ) : (
                                 <span className="px-2 py-1 rounded border border-green-200 bg-green-50 text-green-700 text-xs font-bold">Active</span>
                             )}
@@ -614,29 +730,44 @@ export default function AMCManagement() {
                      {/* Customer Search Section */}
                      <div className="relative">
                          <label className="block text-sm font-medium mb-1" style={{ color: themeColors.text }}>Select Customer *</label>
-                         <input 
-                            type="text" 
-                            placeholder="Type to search customer..." 
-                            value={customerSearch}
-                            onChange={(e)=>setCustomerSearch(e.target.value)}
-                            className="w-full p-2 rounded border"
-                            style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
-                         />
-                         {customerOptions.length > 0 && customerSearch.length > 2 && !createForm.customerId && (
+                         <div className="flex gap-2">
+                             <input 
+                                type="text" 
+                                placeholder="Type to search customer..." 
+                                value={customerSearch}
+                                onChange={(e)=>{
+                                    setCustomerSearch(e.target.value);
+                                    if(createForm.customerId) setCreateForm({...createForm, customerId: ""});
+                                    setShowCustomerDropdown(false);
+                                }}
+                                className="flex-1 p-2 rounded border"
+                                style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                             />
+                             <button
+                                type="button"
+                                onClick={() => setShowCustomerDropdown(!showCustomerDropdown)}
+                                className="px-4 py-2 rounded border hover:bg-slate-100 transition"
+                                style={{ borderColor: themeColors.border, color: themeColors.text }}
+                             >
+                                 {showCustomerDropdown ? '▲' : '▼'}
+                             </button>
+                         </div>
+                         {((customerOptions.length > 0 && customerSearch.length > 2) || (showCustomerDropdown && allCustomers.length > 0)) && (
                              <div 
-                                className="absolute z-10 w-full border shadow-lg max-h-40 overflow-y-auto mt-1 rounded"
+                                className="absolute z-10 w-full border shadow-lg max-h-60 overflow-y-auto mt-1 rounded"
                                 style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
                              >
-                                 {customerOptions.map(c => (
+                                 {(customerSearch.length > 2 ? customerOptions : allCustomers).map(c => (
                                      <div 
                                         key={c._id} 
                                         onClick={() => {
                                             setCreateForm({...createForm, customerId: c._id});
                                             setCustomerSearch(`${c.name} (${c.mobile})`);
                                             setCustomerOptions([]);
+                                            setShowCustomerDropdown(false);
                                         }}
-                                        className="p-2 cursor-pointer text-sm border-b hover:opacity-80 transition"
-                                        style={{ borderColor: themeColors.border, color: themeColors.text, hover: { backgroundColor: themeColors.background } }}
+                                        className="p-2 cursor-pointer text-sm border-b hover:bg-slate-100 transition"
+                                        style={{ borderColor: themeColors.border, color: themeColors.text }}
                                      >
                                          <div className="font-bold">{c.name}</div>
                                          <div className="text-xs opacity-70">{c.mobile} - {c.address?.city}</div>

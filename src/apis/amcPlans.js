@@ -20,3 +20,13 @@ export const deleteAmcPlan = async (id) => {
     const { data } = await http.delete(`/api/amc-plans/${id}`);
     return data;
 };
+
+export const assignProductsToAmc = async (amcId, productIds) => {
+    const { data } = await http.post(`/api/amc-plans/${amcId}/assign-products`, { productIds });
+    return data;
+};
+
+export const getAmcProducts = async (amcId) => {
+    const { data } = await http.get(`/api/amc-plans/${amcId}/products`);
+    return data;
+};
