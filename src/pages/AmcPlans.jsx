@@ -35,6 +35,8 @@ export default function AmcPlans() {
     name: "",
     price: "",
     durationMonths: 12,
+    servicesIncluded: 3,
+    amcType: "Paid",
     features: "",
     color: "blue",
     isPopular: false,
@@ -100,6 +102,8 @@ export default function AmcPlans() {
       name: plan.name,
       price: plan.price,
       durationMonths: plan.durationMonths,
+      servicesIncluded: plan.servicesIncluded || 3,
+      amcType: plan.amcType || "Paid",
       features: plan.features.join(', '),
       color: plan.color,
       isPopular: plan.isPopular,
@@ -125,6 +129,8 @@ export default function AmcPlans() {
       name: "",
       price: "",
       durationMonths: 12,
+      servicesIncluded: 3,
+      amcType: "Paid",
       features: "",
       color: "blue",
       isPopular: false,
@@ -191,16 +197,17 @@ export default function AmcPlans() {
             >
               <tr>
                 <th className="p-4">Name</th>
+                <th className="p-4">Type</th>
                 <th className="p-4">Price</th>
                 <th className="p-4">Duration</th>
-                <th className="p-4">Features</th>
+                <th className="p-4">Services</th>
                 <th className="p-4">Status</th>
                 <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y text-sm" style={{ borderColor: themeColors?.border || '#eee' }}>
               {loading ? (
-                <tr><td colSpan="6" className="p-8 text-center">Loading...</td></tr>
+                <tr><td colSpan="7" className="p-8 text-center">Loading...</td></tr>
               ) : (
                 plans.map((plan) => (
                   <tr key={plan._id} style={{ color: themeColors?.text }}>
@@ -208,16 +215,14 @@ export default function AmcPlans() {
                         <div className="font-bold">{plan.name}</div>
                         {plan.isPopular && <span className="text-xs bg-yellow-100 text-yellow-800 px-1 rounded">Popular</span>}
                     </td>
+                    <td className="p-4">
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${plan.amcType === 'Free' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'}`}>
+                            {plan.amcType || 'Paid'}
+                        </span>
+                    </td>
                     <td className="p-4 font-bold">₹{plan.price}</td>
                     <td className="p-4">{plan.durationMonths} Months</td>
-                    <td className="p-4">
-                        <div className="flex flex-wrap gap-1">
-                            {plan.features.slice(0, 3).map((f, i) => (
-                                <span key={i} className="text-xs bg-gray-100 px-2 py-1 rounded dark:bg-gray-700">{f}</span>
-                            ))}
-                            {plan.features.length > 3 && <span className="text-xs opacity-50">+{plan.features.length - 3} more</span>}
-                        </div>
-                    </td>
+                    <td className="p-4 font-semibold">{plan.servicesIncluded || 0}</td>
                     <td className="p-4">
                         {plan.isActive ? 
                             <span className="text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded">Active</span> : 
@@ -261,6 +266,18 @@ export default function AmcPlans() {
                   required
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">AMC Type</label>
+                <select
+                  value={form.amcType}
+                  onChange={(e) => setForm({ ...form, amcType: e.target.value })}
+                  className="w-full p-2 rounded border"
+                  required
+                >
+                  <option value="Paid">Paid</option>
+                  <option value="Free">Free</option>
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Price (₹)</label>
@@ -282,6 +299,17 @@ export default function AmcPlans() {
                     required
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Service Count</label>
+                <input
+                  type="number"
+                  value={form.servicesIncluded}
+                  onChange={(e) => setForm({ ...form, servicesIncluded: e.target.value })}
+                  className="w-full p-2 rounded border"
+                  placeholder="Number of services included"
+                  required
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Features (comma separated)</label>

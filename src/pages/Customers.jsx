@@ -3,6 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import {
   getCustomers,
+  getCustomersFromOrders,
   getCustomerById, 
   createCustomer,
   updateCustomer,
@@ -113,7 +114,7 @@ export default function Customers() {
   const fetchCustomersList = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await getCustomers(search);
+      const data = await getCustomersFromOrders(search);
       setCustomers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load customers", error);

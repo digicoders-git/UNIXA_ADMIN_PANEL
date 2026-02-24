@@ -9,7 +9,7 @@ export const getCategories = async () => {
 
 // Admin Add
 export const createCategory = async (payload) => {
-  const { data } = await http.post("/categories", payload);
+  const { data } = await http.post("/api/categories", payload);
   return data;
 };
 

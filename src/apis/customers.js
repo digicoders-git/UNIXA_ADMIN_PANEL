@@ -3,7 +3,13 @@ import http from "./http";
 
 export const getCustomers = async (search = "") => {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const response = await http.get(`/api/customers${query}`);
+  const response = await http.get(`/customers${query}`);
+  return response.data;
+};
+
+export const getCustomersFromOrders = async (search = "") => {
+  const query = search ? `?search=${encodeURIComponent(search)}` : "";
+  const response = await http.get(`/api/orders/customers${query}`);
   return response.data;
 };
 

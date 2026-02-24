@@ -47,7 +47,7 @@ const STATUS_OPTIONS = [
   "cancelled",
 ];
 
-const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer"];
+const PAYMENT_METHODS = ["Cash", "UPI", "Card", "Bank Transfer", "Online"];
 const PAYMENT_STATUSES = ["pending", "paid", "failed"];
 
 const InvoiceModal = ({ order, isOpen, onClose }) => {

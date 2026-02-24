@@ -13,7 +13,8 @@ import {
   FaClock,
   FaExclamationCircle,
   FaClipboardList,
-  FaTrash
+  FaTrash,
+  FaSms
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -41,6 +42,13 @@ export default function ServiceRequests() {
   useEffect(() => {
     fetchRequests();
     fetchEmployees();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchRequests();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const fetchEmployees = async () => {
@@ -57,8 +65,10 @@ export default function ServiceRequests() {
   const fetchRequests = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Fetching service requests...');
       const data = await listServiceRequests();
-      console.log("Service Requests Data:", data);
+      console.log('✅ Service Requests Data:', data);
+      console.log('📊 Total requests:', data.length);
       
       // Convert _id to readable ticket format if complaintId is missing
       const processedData = data.map((req, index) => {
@@ -70,9 +80,10 @@ export default function ServiceRequests() {
         return { ...req, displayTicketId: req.ticketId };
       });
       
+      console.log('✨ Processed Data:', processedData);
       setRequests(processedData);
     } catch (err) {
-      console.error("Fetch error:", err);
+      console.error('❌ Fetch error:', err);
       Swal.fire("Error", "Failed to load service requests", "error");
     } finally {
       setLoading(false);
@@ -89,6 +100,40 @@ export default function ServiceRequests() {
           priority: req.priority || "Medium"
       });
       setIsModalOpen(true);
+  };
+
+  const handleSendSMS = async (req) => {
+    const result = await Swal.fire({
+      title: 'Send SMS to Customer',
+      html: `
+        <p class="mb-2">Customer: <strong>${req.customerName}</strong></p>
+        <p class="mb-4">Mobile: <strong>${req.customerMobile}</strong></p>
+        <textarea id="sms-message" class="w-full p-3 border rounded-lg" rows="4" placeholder="Enter your message...">Dear ${req.customerName}, your service request ${req.displayTicketId || req.ticketId} has been updated. Status: ${req.status}. Thank you!</textarea>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Send SMS',
+      confirmButtonColor: '#10b981',
+      preConfirm: () => {
+        const message = document.getElementById('sms-message').value;
+        if (!message) {
+          Swal.showValidationMessage('Please enter a message');
+        }
+        return { message };
+      }
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await http.post('/api/sms/send', {
+          mobile: req.customerMobile,
+          message: result.value.message
+        });
+        Swal.fire('Sent!', 'SMS has been sent successfully.', 'success');
+      } catch (err) {
+        console.error('SMS send failed:', err);
+        Swal.fire('Error', 'Failed to send SMS: ' + (err.response?.data?.message || 'Server Error'), 'error');
+      }
+    }
   };
 
   const handleUpdateSubmit = async (e) => {
@@ -128,8 +173,8 @@ export default function ServiceRequests() {
 
     if (result.isConfirmed) {
       try {
-        const id = req.ticketId || req.complaintId || req._id;
-        await http.delete(`/api/customers/complaints/${id}`);
+        const id = req.ticketId || req.complaintId;
+        await http.delete(`/api/admin/service-requests/${id}`);
         Swal.fire('Deleted!', 'Service request has been deleted.', 'success');
         fetchRequests();
       } catch (err) {
@@ -265,6 +310,13 @@ export default function ServiceRequests() {
                                   <td className="p-4 text-right">
                                       <div className="flex justify-end gap-2">
                                           <button 
+                                              onClick={() => handleSendSMS(req)}
+                                              className="px-3 py-1.5 bg-green-50 text-green-600 hover:bg-green-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
+                                              title="Send SMS"
+                                          >
+                                              <FaSms />
+                                          </button>
+                                          <button 
                                               onClick={() => openUpdateModal(req)}
                                               className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
                                           >
@@ -274,7 +326,7 @@ export default function ServiceRequests() {
                                               onClick={() => handleDelete(req)}
                                               className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
                                           >
-                                              <FaTrash /> Delete
+                                              <FaTrash />
                                           </button>
                                       </div>
                                   </td>

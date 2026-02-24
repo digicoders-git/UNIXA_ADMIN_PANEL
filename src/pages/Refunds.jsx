@@ -248,12 +248,15 @@ export default function Refunds() {
                                   </td>
                                   <td className="p-4">
                                       <div className="font-mono text-xs bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded inline-block">
-                                          #{refund.orderId?._id?.slice(-6)}
+                                          #{refund.orderId?._id?.slice(-8) || 'N/A'}
+                                      </div>
+                                      <div className="text-xs opacity-60 mt-1">
+                                          {refund.orderId?.items?.length || 0} items
                                       </div>
                                   </td>
                                   <td className="p-4">
                                       <div className="font-medium">{refund.userId?.name || "Unknown"}</div>
-                                      <div className="text-xs opacity-60">{refund.userId?.mobile}</div>
+                                      <div className="text-xs opacity-60">{refund.userId?.email || refund.userId?.mobile || 'N/A'}</div>
                                   </td>
                                   <td className="p-4">
                                       <span className="font-bold">₹{refund.amount}</span>
@@ -307,6 +310,17 @@ export default function Refunds() {
                   </h2>
 
                   <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <p className="text-xs opacity-60">Order ID</p>
+                              <p className="font-mono text-sm">#{selectedRefund.orderId?._id?.slice(-8) || 'N/A'}</p>
+                          </div>
+                          <div>
+                              <p className="text-xs opacity-60">Customer</p>
+                              <p className="font-medium">{selectedRefund.userId?.name || 'Unknown'}</p>
+                          </div>
+                      </div>
+
                       <div className="p-3 bg-opacity-50 rounded border" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
                           <p className="text-xs opacity-60 uppercase mb-1">Reason for Request</p>
                           <p className="text-sm font-medium">{selectedRefund.reason}</p>

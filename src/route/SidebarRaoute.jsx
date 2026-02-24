@@ -22,6 +22,8 @@ import {
 // pages
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const Categories = lazy(() => import("../pages/Categories"));
+const AMCManagement = lazy(() => import("../pages/AMCManagement"));
+const UserAMCManagement = lazy(() => import("../pages/UserAMCManagement"));
 const Products = lazy(() => import("../pages/Products"));
 const Offers = lazy(() => import("../pages/Offers"));
 const Orders = lazy(() => import("../pages/Orders"));
@@ -33,8 +35,7 @@ const Transactions = lazy(() => import("../pages/Transactions"));
 const ChangePassword = lazy(() => import("../pages/ChangePassword"));
 const Employees = lazy(() => import("../pages/Employees"));
 const Customers = lazy(() => import("../pages/Customers"));
-const AMCManagement = lazy(() => import("../pages/AMCManagement"));
-const AmcPlans = lazy(() => import("../pages/AmcPlans"));
+// const AmcPlans = lazy(() => import("../pages/AmcPlans"));
 const ServiceRequests = lazy(() => import("../pages/ServiceRequests"));
 const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
 const AssetsHistory = lazy(() => import("../pages/AssetsHistory"));
@@ -50,6 +51,14 @@ const AssignTicket = lazy(() => import("../pages/AssignTicket"));
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
   { path: "/categories", component: Categories, name: "Categories", icon: FaBox },
+  {
+    name: "AMC",
+    icon: FaShieldAlt,
+    children: [
+      { path: "/amc", component: AMCManagement, name: "AMC Plans", icon: FaShieldAlt },
+      { path: "/user-amc", component: UserAMCManagement, name: "User AMCs", icon: FaUsers },
+    ]
+  },
   { path: "/products", component: Products, name: "Products", icon: FaBox },
   { path: "/ro-parts", component: ROParts, name: "RO Parts", icon: FaWrench },
   { path: "/rental-plans", component: RentalPlanManagement, name: "Rental Plans", icon: FaBox },
@@ -76,8 +85,7 @@ const routes = [
   { path: "/employee-assets", component: EmployeeAssets, name: "Employee Assets", icon: FaArchive },
   { path: "/assets-history", component: AssetsHistory, name: "Assets History", icon: FaArchive },
   { path: "/customers", component: Customers, name: "Customers", icon: FaUsers },
-  { path: "/amc-plans", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
-  { path: "/amc", component: AMCManagement, name: "AMC Management", icon: FaShieldAlt },
+  // { path: "/amc-plans", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
   { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench },
   { path: "/assign-ticket", component: AssignTicket, name: "Assign Tickets", icon: FaTicketAlt },
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },

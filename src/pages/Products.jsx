@@ -1550,7 +1550,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="e.g. 93101"
+                    placeholder="e.g. RO-7001"
                   />
                 </div>
 
@@ -1576,7 +1576,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="Single Door Cabinet"
+                    placeholder="e.g. 7 Stage RO Water Purifier"
                   />
                 </div>
 
@@ -1633,7 +1633,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="13395"
+                    placeholder="e.g. 12999"
                   />
                 </div>
 
@@ -1660,7 +1660,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="5"
+                    placeholder="e.g. 10"
                   />
                 </div>
 
@@ -1829,7 +1829,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="Premium LED mirror cabinet"
+                    placeholder="e.g. Advanced 7-stage purification with UV+UF technology for safe drinking water"
                   />
                 </div>
 
@@ -1854,7 +1854,7 @@ export default function Products() {
                       borderColor: themeColors.border,
                       color: themeColors.text,
                     }}
-                    placeholder="Shatter-proof, energy efficient..."
+                    placeholder="e.g. This RO system removes 99.9% impurities, TDS controller maintains essential minerals, suitable for borewell and municipal water"
                   />
                 </div>
 
@@ -1889,7 +1889,7 @@ export default function Products() {
                     className="text-[11px] mb-2 opacity-70"
                     style={{ color: themeColors.text }}
                   >
-                    e.g. 18x24, 24x24 etc.
+                    e.g. 10L, 12L, 15L capacity
                   </p>
                   <div className="space-y-2">
                     {sizesList.map((s, idx) => (
@@ -1909,7 +1909,7 @@ export default function Products() {
                             borderColor: themeColors.border,
                             color: themeColors.text,
                           }}
-                          placeholder="18x24"
+                          placeholder="10L"
                         />
                         <button
                           type="button"
@@ -1951,7 +1951,7 @@ export default function Products() {
                     className="text-[11px] mb-2 opacity-70"
                     style={{ color: themeColors.text }}
                   >
-                    e.g. White, Warm White etc.
+                    e.g. White, Black, Blue etc.
                   </p>
                   <div className="space-y-2">
                     {colorsList.map((c, idx) => (
@@ -2013,7 +2013,7 @@ export default function Products() {
                     className="text-[11px] mb-2 opacity-70"
                     style={{ color: themeColors.text }}
                   >
-                    e.g. Touch Sensor, Anti-fog, Bluetooth etc.
+                    e.g. UV Sterilization, TDS Controller, Mineral Cartridge, Auto Flush etc.
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {featuresList.map((f, idx) => (
@@ -2033,7 +2033,7 @@ export default function Products() {
                             borderColor: themeColors.border,
                             color: themeColors.text,
                           }}
-                          placeholder="Feature description"
+                          placeholder="e.g. UV+UF Double Purification"
                         />
                         <button
                           type="button"
@@ -2088,7 +2088,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="Espezo"
+                        placeholder="e.g. Aqua Fresh / Kent / Livpure"
                       />
                     </div>
                     {/* Weight */}
@@ -2110,7 +2110,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="5 kg"
+                        placeholder="e.g. 8 kg"
                       />
                     </div>
                     {/* Material */}
@@ -2132,7 +2132,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="Aluminum, Glass"
+                        placeholder="e.g. Food Grade Plastic, ABS Body"
                       />
                     </div>
                     {/* Installation */}
@@ -2154,7 +2154,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="Wall Mount"
+                        placeholder="e.g. Wall Mount / Counter Top"
                       />
                     </div>
                     {/* Warranty */}
@@ -2176,7 +2176,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="5 Years"
+                        placeholder="e.g. 1 Year Comprehensive + 5 Years on Membrane"
                       />
                     </div>
                     {/* Frame Type */}
@@ -2198,7 +2198,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="Frameless / Framed"
+                        placeholder="e.g. Compact / Standard / Premium"
                       />
                     </div>
                     {/* Dimensions */}
@@ -2220,7 +2220,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="600mm x 800mm"
+                        placeholder="e.g. 320mm x 480mm x 180mm (W x H x D)"
                       />
                     </div>
                     {/* Glass Type */}
@@ -2242,7 +2242,7 @@ export default function Products() {
                           borderColor: themeColors.border,
                           color: themeColors.text,
                         }}
-                        placeholder="Saint-Gobain Mirror"
+                        placeholder="e.g. 75 GPD RO Membrane / 100 GPD Membrane"
                       />
                     </div>
                   </div>
@@ -2260,7 +2260,7 @@ export default function Products() {
                     className="text-[11px] mb-2 opacity-70"
                     style={{ color: themeColors.text }}
                   >
-                    For example: None (0, default), UV Light (+₹499).
+                    For example: None (0, default), Extra Pre-Filter (+₹299), Alkaline Cartridge (+₹599).
                   </p>
                   <div className="space-y-2">
                     {addOns.map((a, idx) => (
@@ -2274,7 +2274,7 @@ export default function Products() {
                       >
                         <input
                           type="text"
-                          placeholder="Name"
+                          placeholder="e.g. Alkaline Cartridge"
                           value={a.name}
                           onChange={(e) =>
                             handleAddOnChange(
@@ -2293,7 +2293,7 @@ export default function Products() {
                         <input
                           type="number"
                           min="0"
-                          placeholder="Price"
+                          placeholder="e.g. 599"
                           value={a.price}
                           onChange={(e) =>
                             handleAddOnChange(

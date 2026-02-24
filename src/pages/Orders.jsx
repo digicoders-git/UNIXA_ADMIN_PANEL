@@ -50,14 +50,20 @@ export default function Orders() {
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError("");
-      const list = await listOrders();
-      setOrders(list);
+      const data = await listOrders();
+      console.log('Fetched orders:', data);
+      const ordersList = data?.orders || data || [];
+      console.log('Orders list:', ordersList);
+      setOrders(ordersList);
     } catch (e) {
+      console.error('Fetch orders error:', e);
       setError(
         e?.response?.data?.message ||
           e?.message ||
@@ -139,8 +145,7 @@ export default function Orders() {
       list = list.filter((o) => o.status === statusFilter);
     }
     
-    // EXCLUDE offline orders for this view
-    list = list.filter((o) => o.source !== "offline");
+    // Show all orders (removed offline filter)
 
     if (!search.trim()) return list;
     const q = search.toLowerCase();
@@ -161,9 +166,20 @@ export default function Orders() {
     });
   }, [orders, search, statusFilter]);
 
+  // Pagination
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
+
   // Chart data calculations
   const chartData = useMemo(() => {
-    const onlineOrders = orders.filter(o => o.source !== "offline");
+    const onlineOrders = orders; // Show all orders in charts
     
     // Status distribution
     const statusCount = {};
@@ -479,7 +495,7 @@ export default function Orders() {
             Order List
           </span>
           <span className="text-xs opacity-70">
-            {filteredOrders.length} of {orders.length} shown
+            Showing {paginatedOrders.length} of {filteredOrders.length} orders
           </span>
         </h2>
 
@@ -538,7 +554,7 @@ export default function Orders() {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((o) => {
+                paginatedOrders.map((o) => {
                   const id = o._id || o.id || "-";
                   const shipping = o.shippingAddress || {};
                   const itemsText = (o.items || [])
@@ -666,6 +682,41 @@ export default function Orders() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4 pt-4 border-t" style={{ borderColor: themeColors.border }}>
+            <div className="text-xs" style={{ color: themeColors.text }}>
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded border text-xs font-bold disabled:opacity-30"
+                style={{
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border,
+                  color: themeColors.text,
+                }}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded border text-xs font-bold disabled:opacity-30"
+                style={{
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border,
+                  color: themeColors.text,
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

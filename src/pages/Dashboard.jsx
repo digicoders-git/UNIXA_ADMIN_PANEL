@@ -49,48 +49,57 @@ export default function Dashboard() {
   const { themeColors } = useTheme();
   const navigate = useNavigate();
 
+  // All hooks at the top level - always called in same order
   const [overview, setOverview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [qrVisible, setQrVisible] = useState(false);
 
-  const fetchOverview = async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      setError("");
-      if (!isRefresh) setLoading(true);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setError("");
+        const data = await getDashboardOverview();
+        setOverview(data);
+      } catch (e) {
+        console.error("Error fetching dashboard data:", e);
+        setError(e?.response?.data?.message || e?.message || "Failed to load dashboard overview.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
+  const fetchDashboardData = async (isRefresh = false) => {
+    if (!isRefresh) return;
+    try {
+      setRefreshing(true);
+      setError("");
       const data = await getDashboardOverview();
       setOverview(data);
     } catch (e) {
-      setError(
-        e?.response?.data?.message ||
-          e?.message ||
-          "Failed to load dashboard overview."
-      );
+      console.error("Error fetching dashboard data:", e);
+      setError(e?.response?.data?.message || e?.message || "Failed to load dashboard overview.");
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchOverview(false);
-  }, []);
+  // Memoized values - always computed
+  const summary = useMemo(() => overview?.summaryCards || {}, [overview]);
+  const charts = useMemo(() => overview?.charts || {}, [overview]);
+  const tables = useMemo(() => overview?.tables || {}, [overview]);
+  const meta = useMemo(() => overview?.meta || {}, [overview]);
 
-  const summary = overview?.summaryCards || {};
-  const charts = overview?.charts || {};
-  const tables = overview?.tables || {};
-  const meta = overview?.meta || {};
+  const salesLast7Days = useMemo(() => charts.salesLast7Days || [], [charts]);
+  const productsByCategory = useMemo(() => charts.productsByCategory || [], [charts]);
 
-  const salesLast7Days = charts.salesLast7Days || [];
-  const productsByCategory = charts.productsByCategory || [];
-
-  const latestOrders = tables.latestOrders || [];
-  const latestProducts = tables.latestProducts || [];
-  const recentEnquiries = tables.recentEnquiries || [];
-  const activeOffers = tables.activeOffers || [];
+  const latestOrders = useMemo(() => tables.latestOrders || [], [tables]);
+  const latestProducts = useMemo(() => tables.latestProducts || [], [tables]);
+  const recentEnquiries = useMemo(() => tables.recentEnquiries || [], [tables]);
+  const activeOffers = useMemo(() => tables.activeOffers || [], [tables]);
 
   const ordersTrend = useMemo(
     () =>
@@ -120,7 +129,7 @@ export default function Dashboard() {
     [productsByCategory]
   );
 
-  const summaryCards = [
+  const summaryCards = useMemo(() => [
     {
       title: "Total Revenue",
       value: fmtCurrency(summary.totalRevenue),
@@ -153,7 +162,7 @@ export default function Dashboard() {
       description: `Active members: ${fmtNum(summary.activeEmployees)}`,
       link: "/employees",
     },
-  ];
+  ], [summary]);
 
   const isEmpty = !loading && !overview;
 
@@ -187,7 +196,7 @@ export default function Dashboard() {
         {/* Controls */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => fetchOverview(true)}
+            onClick={() => fetchDashboardData(true)}
             disabled={loading || refreshing}
             className="px-3 py-2 rounded-lg border text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
@@ -256,8 +265,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Rest of content only when we have data */}
-      {!loading && overview && (
+      {/* Content - always render to maintain hook order */}
+      {!loading && (
         <>
           {/* Summary cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

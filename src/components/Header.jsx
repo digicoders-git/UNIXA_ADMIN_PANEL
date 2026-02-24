@@ -449,11 +449,11 @@ const Header = memo(({
                           <button 
                             onClick={()=>{
                                 setIsNotifOpen(false);
-                                navigate('/enquiries');
+                                navigate('/service-requests');
                             }}
                             className="text-[11px] text-blue-500 hover:underline font-bold"
                           >
-                              Go to Inbox
+                              View All Requests
                           </button>
                       </div>
                   </div>

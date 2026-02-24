@@ -24,3 +24,9 @@ export const markAdminRead = async () => {
     const response = await http.put("/api/notifications/admin/mark-read");
     return response.data;
 };
+
+// Dashboard stats endpoint
+export const getDashboardStats = async () => {
+    const response = await http.get("/manager-dashboard/stats");
+    return response.data;
+};
