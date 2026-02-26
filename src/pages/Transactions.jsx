@@ -627,7 +627,7 @@ export default function Transactions() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="text-sm font-bold" style={{ color: themeColors.text }}>
-                        {t.userId?.name || "Guest User"}
+                        {t.customerName || t.userId?.name || "Guest User"}
                       </div>
                       <div className="text-[10px] opacity-50" style={{ color: themeColors.text }}>
                         {t.userId?.email || t.userId?.phone || "-"}

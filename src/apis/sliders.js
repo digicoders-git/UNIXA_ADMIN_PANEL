@@ -9,7 +9,7 @@ export const listSliders = async () => {
 
 // POST /sliders  (admin create, multipart/form-data)
 export const createSlider = async (formData) => {
-  const { data } = await http.post("/sliders", formData, {
+  const { data } = await http.post("/api  /sliders", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;

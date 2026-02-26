@@ -25,10 +25,16 @@ export default function UserAMCManagement() {
       setUserAmcs(amcs);
 
       // Calculate stats
+      const expiredCount = amcs.filter(a => {
+        const isDateExpired = new Date(a.endDate) < new Date();
+        const isServicesExhausted = (a.servicesUsed || 0) >= (a.servicesTotal || 4);
+        return a.status === 'Expired' || isDateExpired || isServicesExhausted;
+      }).length;
+
       setStats({
         total: amcs.length,
         active: amcs.filter(a => a.status === 'Active').length,
-        expired: amcs.filter(a => a.status === 'Expired').length,
+        expired: expiredCount,
         revenue: amcs.reduce((sum, a) => sum + (a.amcPlanPrice || 0), 0)
       });
     } catch (err) {
