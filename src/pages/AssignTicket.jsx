@@ -47,19 +47,11 @@ export default function AssignTicket() {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
-    const loadData = async () => {
-      await fetchTickets();
-      await fetchEmployees();
-      await fetchServiceRequests();
-    };
-    loadData();
+    fetchTickets();
+    fetchEmployees();
+    fetchServiceRequests();
+    fetchOrders();
   }, []);
-
-  useEffect(() => {
-    if (tickets.length >= 0) {
-      fetchOrders();
-    }
-  }, [tickets]);
 
   const fetchEmployees = async () => {
     try {
@@ -73,41 +65,27 @@ export default function AssignTicket() {
 
   const fetchServiceRequests = async () => {
     try {
-      const response = await http.get('/api/admin/service-requests');
-      console.log('Service Requests Response:', response);
-      const data = Array.isArray(response.data) ? response.data : [];
+      const { data } = await http.get('/api/admin/service-requests');
       console.log('Service Requests Data:', data);
-      const openRequests = data.filter(req => req.status === 'Open');
-      console.log('Open Service Requests:', openRequests);
+      const openRequests = (Array.isArray(data) ? data : []).filter(req => req.status === 'Open');
+      console.log('Open Requests with Address:', openRequests.map(r => ({ id: r._id, name: r.customerName, address: r.address })));
       setServiceRequests(openRequests);
     } catch (error) {
-      console.error("Error fetching service requests:", error);
+      console.error('Error fetching service requests:', error);
       setServiceRequests([]);
     }
   };
 
   const fetchOrders = async () => {
     try {
-      const response = await http.get('/api/orders');
-      let data = response.data;
+      const { data } = await http.get('/api/orders');
+      let ordersData = data;
       if (data && typeof data === 'object' && !Array.isArray(data)) {
-        data = data.orders || data.data || [];
+        ordersData = data.orders || data.data || [];
       }
-      const ordersArray = Array.isArray(data) ? data : [];
-      
-      // Get all assigned order IDs
-      const assignedOrderIds = tickets
-        .filter(t => t.ticketType === 'order' && t.orderId)
-        .map(t => t.orderId);
-      
-      // Filter: delivered orders that are NOT yet assigned for installation
-      const availableOrders = ordersArray.filter(order => 
-        order.status === 'delivered' && !assignedOrderIds.includes(order._id)
-      );
-      
+      const availableOrders = (Array.isArray(ordersData) ? ordersData : []).filter(order => order.status === 'delivered');
       setOrders(availableOrders);
     } catch (error) {
-      console.error("Error fetching orders:", error);
       setOrders([]);
     }
   };
@@ -116,7 +94,6 @@ export default function AssignTicket() {
     try {
       setLoading(true);
       const { data } = await http.get('/api/assigned-tickets');
-
       const formattedTickets = data.map(ticket => ({
         id: ticket._id,
         ticketType: ticket.ticketType || 'service_request',
@@ -130,11 +107,9 @@ export default function AssignTicket() {
         orderId: ticket.orderId?._id || ticket.orderId,
         serviceRequestId: ticket.serviceRequestId?._id || ticket.serviceRequestId
       }));
-
       formattedTickets.sort((a, b) => new Date(b.date) - new Date(a.date));
       setTickets(formattedTickets);
     } catch (error) {
-      console.error("Error fetching tickets:", error);
       Swal.fire('Error', 'Failed to load tickets', 'error');
     } finally {
       setLoading(false);
@@ -143,10 +118,6 @@ export default function AssignTicket() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    console.log('Form Data:', formData);
-    console.log('Service Requests:', serviceRequests);
-    console.log('Orders:', orders);
     
     try {
       const userData = JSON.parse(localStorage.getItem('admin-data') || '{}');
@@ -171,12 +142,13 @@ export default function AssignTicket() {
           ticketData.userId = selectedRequest.userId;
           ticketData.amcId = selectedRequest.amcId;
           ticketData.customerName = selectedRequest.customerName;
-          ticketData.customerPhone = selectedRequest.customerPhone;
+          ticketData.customerPhone = selectedRequest.customerPhone || selectedRequest.customerMobile;
           ticketData.customerEmail = selectedRequest.customerEmail;
+          ticketData.address = selectedRequest.address || 'N/A';
+          console.log('Ticket Data with Address:', ticketData);
         }
       } else if (formData.ticketType === 'order' && formData.orderId) {
         const selectedOrder = orders.find(order => order._id === formData.orderId);
-        console.log('Selected Order:', selectedOrder);
         if (selectedOrder) {
           ticketData.orderId = selectedOrder._id;
           ticketData.userId = selectedOrder.userId;
@@ -186,8 +158,6 @@ export default function AssignTicket() {
           ticketData.address = `${selectedOrder.shippingAddress?.addressLine1}, ${selectedOrder.shippingAddress?.city}`;
         }
       }
-
-      console.log('Ticket Data to Submit:', ticketData);
 
       if (editingTicket) {
         await http.put(`/api/assigned-tickets/${editingTicket.id}`, ticketData);
@@ -199,7 +169,6 @@ export default function AssignTicket() {
       fetchTickets();
       handleCloseForm();
     } catch (error) {
-      console.error('Error saving ticket:', error);
       Swal.fire("Error", "Failed to save ticket", "error");
     }
   };
@@ -513,7 +482,6 @@ export default function AssignTicket() {
                     value={formData.serviceRequestId}
                     onChange={(e) => {
                       const selected = serviceRequests.find(req => req._id === e.target.value);
-                      console.log('Selected Request:', selected);
                       setFormData({ 
                         ...formData, 
                         serviceRequestId: e.target.value,
@@ -551,7 +519,6 @@ export default function AssignTicket() {
                     value={formData.orderId}
                     onChange={(e) => {
                       const selected = orders.find(order => order._id === e.target.value);
-                      console.log('Selected Order:', selected);
                       setFormData({ 
                         ...formData, 
                         orderId: e.target.value,

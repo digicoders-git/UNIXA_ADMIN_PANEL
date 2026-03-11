@@ -42,13 +42,6 @@ export default function ServiceRequests() {
   useEffect(() => {
     fetchRequests();
     fetchEmployees();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchRequests();
-    }, 30000);
-    
-    return () => clearInterval(interval);
   }, []);
 
   const fetchEmployees = async () => {
@@ -63,28 +56,11 @@ export default function ServiceRequests() {
   };
 
   const fetchRequests = async () => {
-    setLoading(true);
     try {
-      console.log('🔍 Fetching service requests...');
       const data = await listServiceRequests();
-      console.log('✅ Service Requests Data:', data);
-      console.log('📊 Total requests:', data.length);
-      
-      // Convert _id to readable ticket format if complaintId is missing
-      const processedData = data.map((req, index) => {
-        if (!req.ticketId || req.ticketId.length > 20) {
-          // Generate sequential ticket ID
-          const ticketNum = String(index + 1).padStart(3, '0');
-          return { ...req, displayTicketId: `TKT-${ticketNum}` };
-        }
-        return { ...req, displayTicketId: req.ticketId };
-      });
-      
-      console.log('✨ Processed Data:', processedData);
-      setRequests(processedData);
+      setRequests(data);
     } catch (err) {
-      console.error('❌ Fetch error:', err);
-      Swal.fire("Error", "Failed to load service requests", "error");
+      Swal.fire("Error", "Failed to load", "error");
     } finally {
       setLoading(false);
     }
@@ -107,8 +83,8 @@ export default function ServiceRequests() {
       title: 'Send SMS to Customer',
       html: `
         <p class="mb-2">Customer: <strong>${req.customerName}</strong></p>
-        <p class="mb-4">Mobile: <strong>${req.customerMobile}</strong></p>
-        <textarea id="sms-message" class="w-full p-3 border rounded-lg" rows="4" placeholder="Enter your message...">Dear ${req.customerName}, your service request ${req.displayTicketId || req.ticketId} has been updated. Status: ${req.status}. Thank you!</textarea>
+        <p class="mb-4">Mobile: <strong>${req.customerMobile || req.customerPhone}</strong></p>
+        <textarea id="sms-message" class="w-full p-3 border rounded-lg" rows="4" placeholder="Enter your message...">Dear ${req.customerName}, your service request ${req.ticketId} has been updated. Status: ${req.status}. Thank you!</textarea>
       `,
       showCancelButton: true,
       confirmButtonText: 'Send SMS',
@@ -125,7 +101,7 @@ export default function ServiceRequests() {
     if (result.isConfirmed) {
       try {
         await http.post('/api/sms/send', {
-          mobile: req.customerMobile,
+          mobile: req.customerMobile || req.customerPhone,
           message: result.value.message
         });
         Swal.fire('Sent!', 'SMS has been sent successfully.', 'success');
@@ -163,7 +139,7 @@ export default function ServiceRequests() {
   const handleDelete = async (req) => {
     const result = await Swal.fire({
       title: 'Delete Service Request?',
-      text: `Are you sure you want to delete ticket ${req.displayTicketId || req.ticketId}?`,
+      text: `Are you sure you want to delete ticket ${req.ticketId || req.complaintId}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
@@ -276,7 +252,7 @@ export default function ServiceRequests() {
                       ) : (
                           filteredRequests.map(req => (
                               <tr key={req.ticketId || req.complaintId || req._id} className="hover:bg-black/5 transition">
-                                  <td className="p-4 font-mono text-xs font-bold">{req.displayTicketId || req.ticketId || req.complaintId || 'N/A'}</td>
+                                  <td className="p-4 font-mono text-xs font-bold">{req.ticketId || req.complaintId || 'N/A'}</td>
                                   <td className="p-4">
                                       <div className="font-bold">{req.customerName}</div>
                                       <div className="text-xs opacity-60">{req.customerMobile}</div>
@@ -346,7 +322,7 @@ export default function ServiceRequests() {
                   style={{ backgroundColor: themeColors.surface, color: themeColors.text }}
               >
                   <h2 className="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-3" style={{ borderColor: themeColors.border }}>
-                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.displayTicketId || selectedRequest.ticketId || selectedRequest.complaintId}
+                      <FaClipboardList className="text-blue-600" /> Update Request: {selectedRequest.ticketId || selectedRequest.complaintId}
                   </h2>
                   
                   <form onSubmit={handleUpdateSubmit} className="space-y-4">

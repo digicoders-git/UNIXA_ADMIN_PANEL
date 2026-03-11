@@ -13,7 +13,8 @@ import {
   FaUserTie,
   FaQrcode,
   FaTimes,
-  FaExternalLinkAlt
+  FaExternalLinkAlt,
+  FaShieldAlt
 } from "react-icons/fa";
 import { QRCodeCanvas } from "qrcode.react";
 import { useNavigate } from "react-router-dom";
@@ -137,7 +138,7 @@ export default function Dashboard() {
       description: `This month: ${fmtCurrency(
         summary.monthRevenue
       )} • Avg order: ${fmtCurrency(summary.avgOrderValue)}`,
-      link: null, 
+      link: null,
     },
     {
       title: "Orders",
@@ -161,6 +162,27 @@ export default function Dashboard() {
       icon: FaUserTie,
       description: `Active members: ${fmtNum(summary.activeEmployees)}`,
       link: "/employees",
+    },
+    {
+      title: "Active AMCs",
+      value: fmtNum(summary.activeAmcCount),
+      icon: FaShieldAlt,
+      description: `Pending visits: ${fmtNum(summary.dueAmcCount)}`,
+      link: "/user-amc",
+    },
+    {
+      title: "Expired AMCs",
+      value: fmtNum(summary.expiredAmcCount),
+      icon: FaShieldAlt,
+      description: `Inactive subscriptions`,
+      link: "/user-amc",
+    },
+    {
+      title: "Total AMCs",
+      value: fmtNum(summary.totalAmcCount),
+      icon: FaShieldAlt,
+      description: `Lifetime subscriptions`,
+      link: "/user-amc",
     },
   ], [summary]);
 
@@ -269,7 +291,7 @@ export default function Dashboard() {
       {!loading && (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
             {summaryCards.map((stat, index) => (
               <div
                 key={index}
@@ -486,7 +508,7 @@ export default function Dashboard() {
 
                       const itemText = firstItem
                         ? `${firstItem.productName || firstItem.product?.name || "Item"
-                          } x${firstItem.quantity}`
+                        } x${firstItem.quantity}`
                         : "-";
 
                       return (
@@ -659,11 +681,11 @@ export default function Dashboard() {
                             style={{
                               backgroundColor: p.isActive
                                 ? (themeColors.success ||
-                                    themeColors.primary) + "15"
+                                  themeColors.primary) + "15"
                                 : themeColors.border,
                               color: p.isActive
                                 ? themeColors.success ||
-                                  themeColors.primary
+                                themeColors.primary
                                 : themeColors.text,
                             }}
                           >
@@ -924,45 +946,45 @@ export default function Dashboard() {
       {qrVisible && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="w-full max-w-sm bg-white rounded-[2rem] shadow-2xl p-8 flex flex-col items-center">
-             <div className="flex justify-between w-full mb-6">
-                <h3 className="text-xl font-bold text-slate-800">Website QR Code</h3>
-                <button onClick={() => setQrVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                   <FaTimes size={20} />
-                </button>
-             </div>
-             
-             <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner mb-6">
-                <QRCodeCanvas value="https://www.unixa.co.in" size={220} level="H" />
-             </div>
-             
-             <p className="text-center text-sm text-slate-500 mb-6 font-medium">
-                Scan to visit our official website at <br/>
-                <span className="text-blue-600 font-bold underline cursor-pointer" onClick={() => window.open('https://www.unixa.co.in', '_blank')}>
-                   www.unixa.co.in
-                </span>
-             </p>
-             
-             <div className="w-full space-y-3">
-                <button 
-                    onClick={() => window.open('https://www.unixa.co.in', '_blank')}
-                    className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                    <FaExternalLinkAlt /> Open Website
-                </button>
-                <button 
-                    onClick={() => {
-                        const canvas = document.querySelector('canvas');
-                        const url = canvas.toDataURL("image/png");
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = 'unixa-website-qr.png';
-                        link.click();
-                    }}
-                    className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
-                >
-                    Download QR Code
-                </button>
-             </div>
+            <div className="flex justify-between w-full mb-6">
+              <h3 className="text-xl font-bold text-slate-800">Website QR Code</h3>
+              <button onClick={() => setQrVisible(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <FaTimes size={20} />
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl border-2 border-slate-100 shadow-inner mb-6">
+              <QRCodeCanvas value="https://www.unixa.co.in" size={220} level="H" />
+            </div>
+
+            <p className="text-center text-sm text-slate-500 mb-6 font-medium">
+              Scan to visit our official website at <br />
+              <span className="text-blue-600 font-bold underline cursor-pointer" onClick={() => window.open('https://www.unixa.co.in', '_blank')}>
+                www.unixa.co.in
+              </span>
+            </p>
+
+            <div className="w-full space-y-3">
+              <button
+                onClick={() => window.open('https://www.unixa.co.in', '_blank')}
+                className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-100 transition-all active:scale-95 flex items-center justify-center gap-2"
+              >
+                <FaExternalLinkAlt /> Open Website
+              </button>
+              <button
+                onClick={() => {
+                  const canvas = document.querySelector('canvas');
+                  const url = canvas.toDataURL("image/png");
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.download = 'unixa-website-qr.png';
+                  link.click();
+                }}
+                className="w-full py-3 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-200"
+              >
+                Download QR Code
+              </button>
+            </div>
           </div>
         </div>
       )}

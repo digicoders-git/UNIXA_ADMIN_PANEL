@@ -9,6 +9,6 @@ export const getDashboardOverview = async () => {
 
 // GET /manager-dashboard/stats (stats endpoint)
 export const getDashboardStats = async () => {
-  const { data } = await http.get("/manager-dashboard/stats");
+  const { data } = await http.get("/api/manager-dashboard/stats");
   return data;
 };

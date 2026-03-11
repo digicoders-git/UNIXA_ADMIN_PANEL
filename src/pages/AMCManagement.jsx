@@ -42,6 +42,7 @@ export default function AMCManagement() {
   
   // Forms controls
   const [renewForm, setRenewForm] = useState({});
+  const [editingId, setEditingId] = useState(null);
   const [createForm, setCreateForm] = useState({
       planName: "Gold Plan",
       planType: "Gold",
@@ -155,8 +156,19 @@ export default function AMCManagement() {
   };
 
   const handleEditPlan = (plan) => {
-    // TODO: Implement edit functionality
-    Swal.fire("Info", "Edit functionality coming soon", "info");
+    setEditingId(plan._id);
+    setCreateForm({
+      planName: plan.name,
+      planType: plan.planType || "Gold",
+      amcType: plan.amcType || "Paid",
+      durationMonths: plan.durationMonths,
+      startDate: new Date().toISOString().split('T')[0],
+      amount: plan.price,
+      servicesTotal: plan.servicesIncluded || 3,
+      partsIncluded: plan.partsIncluded || false,
+      notes: plan.features ? plan.features.join(', ') : ""
+    });
+    setIsCreateModalOpen(true);
   };
 
   const handleDeletePlan = async (planId) => {
@@ -205,12 +217,20 @@ export default function AMCManagement() {
               durationMonths: createForm.durationMonths,
               servicesIncluded: createForm.servicesTotal,
               partsIncluded: createForm.partsIncluded,
-              features: createForm.notes ? [createForm.notes] : [],
+              features: createForm.notes ? createForm.notes.split(',').map(f => f.trim()).filter(Boolean) : [],
               isActive: true
           };
-          await createAmcPlan(payload);
-          Swal.fire("Success", "New AMC Plan Created", "success");
+          
+          if (editingId) {
+              await http.put(`/api/amc-plans/${editingId}`, payload);
+              Swal.fire("Success", "AMC Plan Updated Successfully", "success");
+          } else {
+              await createAmcPlan(payload);
+              Swal.fire("Success", "New AMC Plan Created", "success");
+          }
+          
           setIsCreateModalOpen(false);
+          setEditingId(null);
           fetchAmcPlans();
           setCreateForm({
                 planName: "Gold Plan",
@@ -224,7 +244,7 @@ export default function AMCManagement() {
                 notes: ""
           }); 
       } catch(err) {
-          Swal.fire("Error", err.response?.data?.message || "Failed to create AMC Plan", "error");
+          Swal.fire("Error", err.response?.data?.message || "Failed to save AMC Plan", "error");
       }
   };
 
@@ -254,7 +274,21 @@ export default function AMCManagement() {
             <FaShieldAlt className="text-green-600" /> AMC Management
         </h1>
         <button 
-            onClick={()=>setIsCreateModalOpen(true)}
+            onClick={()=>{
+              setEditingId(null);
+              setCreateForm({
+                planName: "Gold Plan",
+                planType: "Gold",
+                amcType: "Paid",
+                durationMonths: 12,
+                startDate: new Date().toISOString().split('T')[0],
+                amount: "",
+                servicesTotal: 3,
+                partsIncluded: false,
+                notes: ""
+              });
+              setIsCreateModalOpen(true);
+            }}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700 shadow-md"
         >
             <FaPlus /> Create New AMC
@@ -739,7 +773,9 @@ export default function AMCManagement() {
                 className="rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6"
                 style={{ backgroundColor: themeColors.surface, color: themeColors.text }}
               >
-                  <h2 className="text-xl font-bold mb-4 border-b pb-2" style={{ borderColor: themeColors.border }}>Create New AMC</h2>
+                  <h2 className="text-xl font-bold mb-4 border-b pb-2" style={{ borderColor: themeColors.border }}>
+                    {editingId ? "Edit AMC Plan" : "Create New AMC Plan"}
+                  </h2>
                   <form onSubmit={handleCreateSubmit} className="space-y-4">
                      
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -848,7 +884,9 @@ export default function AMCManagement() {
                       
                       <div className="flex justify-end gap-2 mt-6 border-t pt-4" style={{ borderColor: themeColors.border }}>
                           <button type="button" onClick={()=>setIsCreateModalOpen(false)} className="px-4 py-2 rounded bg-gray-200 text-gray-800 hover:bg-gray-300">Cancel</button>
-                          <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Create AMC</button>
+                          <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">
+                            {editingId ? "Update AMC" : "Create AMC"}
+                          </button>
                       </div>
                   </form>
               </div>

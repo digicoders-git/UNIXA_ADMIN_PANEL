@@ -62,7 +62,13 @@ export default function Employees() {
     try {
       setLoading(true);
       const data = await getEmployees();
-      setEmployees(Array.isArray(data) ? data : []);
+      const validEmployees = (Array.isArray(data) ? data : []).map(emp => ({
+        ...emp,
+        joiningDate: (emp.joiningDate || emp.createdAt) && !isNaN(new Date(emp.joiningDate || emp.createdAt).getTime())
+          ? (emp.joiningDate || emp.createdAt)
+          : null,
+      }));
+      setEmployees(validEmployees);
     } catch (error) {
       console.error("Failed to load employees", error);
       Swal.fire("Error", "Failed to load employees", "error");
@@ -99,10 +105,13 @@ export default function Employees() {
 
   const openEditModal = (emp) => {
     setEditing(emp);
+    const validJoiningDate = emp.joiningDate && !isNaN(new Date(emp.joiningDate).getTime())
+      ? emp.joiningDate.split("T")[0]
+      : new Date().toISOString().split("T")[0];
     setForm({
       ...emp,
       password: "",
-      joiningDate: emp.joiningDate ? emp.joiningDate.split("T")[0] : "",
+      joiningDate: validJoiningDate,
       location: emp.location || "",
       workingArea: emp.workingArea || "",
       employeeId: emp.employeeId || "",
@@ -142,7 +151,7 @@ export default function Employees() {
         }
         const plainPassword = form.password; // Store before sending
         await createEmployee(form);
-        
+
         // Show credentials to admin
         Swal.fire({
           title: "Employee Created Successfully!",
@@ -265,9 +274,8 @@ export default function Employees() {
             <button
               type="button"
               onClick={() => setViewMode("table")}
-              className={`p-2 flex items-center justify-center transition-all ${
-                viewMode === "table" ? "bg-slate-100 dark:bg-slate-700" : ""
-              }`}
+              className={`p-2 flex items-center justify-center transition-all ${viewMode === "table" ? "bg-slate-100 dark:bg-slate-700" : ""
+                }`}
               style={{ color: themeColors.text }}
               title="Table View"
             >
@@ -276,9 +284,8 @@ export default function Employees() {
             <button
               type="button"
               onClick={() => setViewMode("card")}
-              className={`p-2 flex items-center justify-center border-l transition-all ${
-                viewMode === "card" ? "bg-slate-100 dark:bg-slate-700" : ""
-              }`}
+              className={`p-2 flex items-center justify-center border-l transition-all ${viewMode === "card" ? "bg-slate-100 dark:bg-slate-700" : ""
+                }`}
               style={{ borderColor: themeColors.border, color: themeColors.text }}
               title="Card View"
             >
@@ -362,11 +369,10 @@ export default function Employees() {
                       </td>
                       <td className="p-4">
                         <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${
-                            emp.status
+                          className={`px-2 py-1 rounded-full text-xs font-bold ${emp.status
                               ? "bg-green-100 text-green-700"
                               : "bg-red-100 text-red-700"
-                          }`}
+                            }`}
                         >
                           {emp.status ? "Active" : "Inactive"}
                         </span>
@@ -410,77 +416,76 @@ export default function Employees() {
             // Card View
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
               {Array.isArray(filteredEmployees) && filteredEmployees.map((emp) => (
-                <div 
-                  key={emp._id} 
+                <div
+                  key={emp._id}
                   className="rounded-xl border p-5 flex flex-col gap-4 relative group hover:shadow-lg transition-all"
-                  style={{ 
-                    borderColor: themeColors.border, 
-                    backgroundColor: themeColors.surface 
+                  style={{
+                    borderColor: themeColors.border,
+                    backgroundColor: themeColors.surface
                   }}
                 >
                   <div className="flex justify-between items-start">
-                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
-                           {emp.name.charAt(0)}
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-lg leading-tight">{emp.name}</h3>
-                           <p className="text-xs opacity-60">{emp.designation || "No Designation"}</p>
-                        </div>
-                     </div>
-                     <span
-                          className={`px-2 py-1 rounded-full text-xs font-bold ${
-                            emp.status
-                              ? "bg-green-50 text-green-600 border border-green-100"
-                              : "bg-red-50 text-red-600 border border-red-100"
-                          }`}
-                        >
-                          {emp.status ? "Active" : "Inactive"}
-                     </span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                        {emp.name.charAt(0)}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-lg leading-tight">{emp.name}</h3>
+                        <p className="text-xs opacity-60">{emp.designation || "No Designation"}</p>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-2 py-1 rounded-full text-xs font-bold ${emp.status
+                          ? "bg-green-50 text-green-600 border border-green-100"
+                          : "bg-red-50 text-red-600 border border-red-100"
+                        }`}
+                    >
+                      {emp.status ? "Active" : "Inactive"}
+                    </span>
                   </div>
 
                   <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 opacity-80">
-                         <FaEnvelope className="opacity-50" />
-                         <span className="truncate">{emp.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2 opacity-80">
-                         <FaPhone className="opacity-50" />
-                         <span>{emp.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2 opacity-80">
-                         <FaMapMarkerAlt className="opacity-50" />
-                         <span className="truncate">{emp.address || "No Address"}</span>
-                      </div>
+                    <div className="flex items-center gap-2 opacity-80">
+                      <FaEnvelope className="opacity-50" />
+                      <span className="truncate">{emp.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-80">
+                      <FaPhone className="opacity-50" />
+                      <span>{emp.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-80">
+                      <FaMapMarkerAlt className="opacity-50" />
+                      <span className="truncate">{emp.address || "No Address"}</span>
+                    </div>
                   </div>
 
                   <div className="pt-3 mt-auto border-t flex justify-between items-center" style={{ borderColor: themeColors.border }}>
-                      <span className="text-xs opacity-50 font-semibold bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-                         {emp.role}
-                      </span>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setViewing(emp)}
-                          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition"
-                          title="View"
-                        >
-                          <FaEye />
-                        </button>
-                        <button
-                          onClick={() => openEditModal(emp)}
-                          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition"
-                          title="Edit"
-                        >
-                          <FaEdit />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(emp)}
-                          className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition"
-                          title="Delete"
-                        >
-                          <FaTrash />
-                        </button>
-                      </div>
+                    <span className="text-xs opacity-50 font-semibold bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                      {emp.role}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setViewing(emp)}
+                        className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition"
+                        title="View"
+                      >
+                        <FaEye />
+                      </button>
+                      <button
+                        onClick={() => openEditModal(emp)}
+                        className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition"
+                        title="Edit"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(emp)}
+                        className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition"
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -794,11 +799,10 @@ export default function Employees() {
                   <h3 className="text-xl font-bold">{viewing.name}</h3>
                   <p className="text-sm opacity-60">{viewing.designation || "No Designation"}</p>
                   <span
-                    className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-bold ${
-                      viewing.status
+                    className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-bold ${viewing.status
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
-                    }`}
+                      }`}
                   >
                     {viewing.status ? "Active" : "Inactive"}
                   </span>
@@ -810,7 +814,7 @@ export default function Employees() {
                 <div className="col-span-1 md:col-span-2 p-3 rounded-lg border" style={{ borderColor: themeColors.border }}>
                   <p className="text-xs opacity-60 mb-1">Email Address</p>
                   <div className="flex items-center gap-2 font-medium break-all">
-                    <FaEnvelope className="text-blue-500 shrink-0" /> 
+                    <FaEnvelope className="text-blue-500 shrink-0" />
                     {viewing.email}
                   </div>
                 </div>
@@ -839,19 +843,19 @@ export default function Employees() {
 
                 {/* Password - Toggle Visibility */}
                 <div className="p-3 rounded-lg border" style={{ borderColor: themeColors.border }}>
-                   <div className="flex justify-between items-center mb-1">
-                      <p className="text-xs opacity-60">Password (Hash)</p>
-                      <button 
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-gray-400 hover:text-blue-500 focus:outline-none"
-                        title={showPassword ? "Hide Password" : "Show Password"}
-                      >
-                        {showPassword ? <FaTimes size={12} /> : <FaEye size={12} />}
-                      </button> 
-                   </div>
-                   <div className={`font-medium text-sm break-all ${showPassword ? "text-gray-700 dark:text-gray-300" : "text-gray-500 tracking-widest"}`}>
-                      {showPassword ? (viewing.password || "No Password Set") : "••••••••"}
-                   </div>
+                  <div className="flex justify-between items-center mb-1">
+                    <p className="text-xs opacity-60">Password (Hash)</p>
+                    <button
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-gray-400 hover:text-blue-500 focus:outline-none"
+                      title={showPassword ? "Hide Password" : "Show Password"}
+                    >
+                      {showPassword ? <FaTimes size={12} /> : <FaEye size={12} />}
+                    </button>
+                  </div>
+                  <div className={`font-medium text-sm break-all ${showPassword ? "text-gray-700 dark:text-gray-300" : "text-gray-500 tracking-widest"}`}>
+                    {showPassword ? (viewing.password || "No Password Set") : "••••••••"}
+                  </div>
                 </div>
 
                 {/* Address - Full Width */}

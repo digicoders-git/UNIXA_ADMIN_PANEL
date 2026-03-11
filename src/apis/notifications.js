@@ -16,17 +16,17 @@ export const deleteNotification = async (id) => {
 };
 
 export const getAdminNotifications = async () => {
-    const response = await http.get("/api/notifications/admin/unread");
-    return response.data;
+  const response = await http.get("/api/notifications/admin/unread");
+  return response.data;
 };
 
 export const markAdminRead = async () => {
-    const response = await http.put("/api/notifications/admin/mark-read");
-    return response.data;
+  const response = await http.put("/api/notifications/admin/mark-read");
+  return response.data;
 };
 
 // Dashboard stats endpoint
 export const getDashboardStats = async () => {
-    const response = await http.get("/manager-dashboard/stats");
-    return response.data;
+  const response = await http.get("/api/manager-dashboard/stats");
+  return response.data;
 };

@@ -254,7 +254,7 @@ export default function AmcPlans() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto" style={{ backgroundColor: themeColors?.surface, color: themeColors?.text }}>
-            <h2 className="text-xl font-bold mb-4">{editingId ? "Edit Plan" : "Create Plan"}</h2>
+            <h2 className="text-xl font-bold mb-4">{editingId ? "Edit AMC Plan" : "Create New AMC Plan"}</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Plan Name</label>
@@ -353,7 +353,7 @@ export default function AmcPlans() {
                   type="submit"
                   className="px-4 py-2 rounded bg-blue-600 text-white"
                 >
-                  Save Plan
+                  {editingId ? "Update Plan" : "Save Plan"}
                 </button>
               </div>
             </form>

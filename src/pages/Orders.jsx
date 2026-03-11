@@ -557,7 +557,7 @@ export default function Orders() {
                 paginatedOrders.map((o) => {
                   const id = o._id || o.id || "-";
                   const shipping = o.shippingAddress || {};
-                  const itemsText = (o.items || [])
+                  const itemsText = (o.items && Array.isArray(o.items) ? o.items : [])
                     .map(
                       (it) =>
                         `${it.productName || it.product?.name || "Item"} x${
@@ -603,7 +603,7 @@ export default function Orders() {
                         >
                           {itemsText}
                         </div>
-                        {o.items?.length > 1 && (
+                        {(o.items && Array.isArray(o.items) && o.items.length > 1) && (
                           <div className="text-[10px] text-blue-500 font-bold uppercase mt-0.5">
                             +{o.items.length - 1} more items
                           </div>

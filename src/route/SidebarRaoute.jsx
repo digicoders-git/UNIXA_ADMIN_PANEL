@@ -17,6 +17,7 @@ import {
   FaDolly,
   FaWrench,
   FaTicketAlt,
+  FaUserPlus,
 } from "react-icons/fa";
 
 // pages
@@ -47,6 +48,7 @@ const StockManagement = lazy(() => import("../pages/StockManagement"));
 const ROParts = lazy(() => import("../pages/ROParts"));
 const RentalPlanManagement = lazy(() => import("../pages/RentalPlanManagement"));
 const AssignTicket = lazy(() => import("../pages/AssignTicket"));
+const LeadManagement = lazy(() => import("../pages/LeadManagement"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
@@ -77,6 +79,7 @@ const routes = [
 
   { path: "/transactions", component: Transactions, name: "Transactions", icon: FaCoins },
   { path: "/enquiries", component: Enquiries, name: "Enquiries", icon: FaEnvelopeOpenText },
+  { path: "/leads", component: LeadManagement, name: "Lead Management", icon: FaUserPlus },
   { path: "/sliders", component: Sliders, name: "Sliders", icon: FaImages },
   { path: "/certificates", component: Certificates, name: "Certificates", icon: FaShieldAlt },
   { path: "/reviews", component: Reviews, name: "Reviews", icon: FaBlog },
