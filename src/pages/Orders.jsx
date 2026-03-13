@@ -61,7 +61,9 @@ export default function Orders() {
       console.log('Fetched orders:', data);
       const ordersList = data?.orders || data || [];
       console.log('Orders list:', ordersList);
-      setOrders(ordersList);
+      // Filter out offline orders - only show online orders
+      const onlineOrders = ordersList.filter(o => o.source !== 'offline');
+      setOrders(onlineOrders);
     } catch (e) {
       console.error('Fetch orders error:', e);
       setError(
@@ -144,8 +146,6 @@ export default function Orders() {
     if (statusFilter !== "all") {
       list = list.filter((o) => o.status === statusFilter);
     }
-    
-    // Show all orders (removed offline filter)
 
     if (!search.trim()) return list;
     const q = search.toLowerCase();
@@ -179,7 +179,7 @@ export default function Orders() {
 
   // Chart data calculations
   const chartData = useMemo(() => {
-    const onlineOrders = orders; // Show all orders in charts
+    const onlineOrders = orders; // Only online orders
     
     // Status distribution
     const statusCount = {};
@@ -292,13 +292,13 @@ export default function Orders() {
             style={{ color: themeColors.text }}
           >
             <FaShoppingCart />
-            Orders
+            Online Orders
           </h1>
           <p
             className="text-sm mt-1 opacity-75"
             style={{ color: themeColors.text }}
           >
-            View and manage all customer orders.
+            View and manage all online customer orders.
           </p>
         </div>
 
@@ -550,7 +550,7 @@ export default function Orders() {
                     className="px-4 py-6 text-center text-sm"
                     style={{ color: themeColors.text }}
                   >
-                    No orders found.
+                    No online orders found.
                   </td>
                 </tr>
               ) : (

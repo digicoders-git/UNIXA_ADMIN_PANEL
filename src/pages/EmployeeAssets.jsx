@@ -74,6 +74,9 @@ export default function EmployeeAssets() {
       remarks: ""
   });
 
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
   useEffect(() => {
     fetchEmployees();
   }, []);
@@ -460,11 +463,57 @@ export default function EmployeeAssets() {
                    </div>
                    <form onSubmit={handleAssignSubmit} className="space-y-4">
                        <div>
-                           <label className="block text-sm font-medium mb-1">Select Employee</label>
-                           <select value={assignForm.employeeId} onChange={e=>setAssignForm({...assignForm, employeeId: e.target.value})} className="w-full p-2 rounded border" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }} required>
-                               <option value="">-- Select Employee --</option>
-                               {employees.map(emp => <option key={emp._id} value={emp._id}>{emp.name} ({emp.designation})</option>)}
-                           </select>
+                        <div className="relative">
+                            <label className="block text-sm font-medium mb-1">Select Employee</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="w-full border rounded p-2 cursor-pointer outline-none"
+                                    readOnly
+                                    placeholder="-- Select Employee --"
+                                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                    onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+                                    value={
+                                        assignForm.employeeId 
+                                        ? employees.find(e => e._id === assignForm.employeeId)?.name || "-- Select Employee --"
+                                        : ""
+                                    }
+                                />
+                                {showEmployeeDropdown && (
+                                    <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search employee..."
+                                            autoFocus
+                                            className="w-full p-2 mb-2 rounded border text-sm outline-none"
+                                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                            value={employeeSearch}
+                                            onChange={e => setEmployeeSearch(e.target.value)}
+                                        />
+                                        <div className="max-h-60 overflow-y-auto space-y-1">
+                                            {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).map(emp => (
+                                                <div 
+                                                    key={emp._id}
+                                                    className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm transition-colors flex justify-between items-center"
+                                                    onClick={() => {
+                                                        setAssignForm({...assignForm, employeeId: emp._id});
+                                                        setShowEmployeeDropdown(false);
+                                                        setEmployeeSearch("");
+                                                    }}
+                                                >
+                                                    <span className="font-bold">{emp.name}</span>
+                                                    <span className="text-xs opacity-60 uppercase">{emp.designation || emp.role}</span>
+                                                </div>
+                                            ))}
+                                            {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
+                                                <div className="p-3 text-center text-xs opacity-50">No employees found</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {showEmployeeDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowEmployeeDropdown(false)}></div>}
+                            </div>
+                        </div>
                        </div>
                        <div>
                            <label className="block text-sm font-medium mb-1">Assigned Date</label>

@@ -12,7 +12,9 @@ import {
   FaCalendar,
   FaTimes,
   FaFile,
-  FaClock
+  FaCheck,
+  FaClock,
+  FaHourglassHalf
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import http from '../apis/http';
@@ -22,6 +24,8 @@ export default function AssignTicket() {
   const { currentFont } = useFont();
 
   const [tickets, setTickets] = useState([]);
+  const [isImagePreviewOpen, setIsImagePreviewOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState('');
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +46,13 @@ export default function AssignTicket() {
     serviceRequestId: '',
     orderId: ''
   });
+
+  const [techSearch, setTechSearch] = useState("");
+  const [showTechDropdown, setShowTechDropdown] = useState(false);
+  const [srSearch, setSrSearch] = useState("");
+  const [showSrDropdown, setShowSrDropdown] = useState(false);
+  const [orderSearch, setOrderSearch] = useState("");
+  const [showOrderDropdown, setShowOrderDropdown] = useState(false);
 
   const [serviceRequests, setServiceRequests] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -65,11 +76,9 @@ export default function AssignTicket() {
 
   const fetchServiceRequests = async () => {
     try {
-      const { data } = await http.get('/api/admin/service-requests');
-      console.log('Service Requests Data:', data);
-      const openRequests = (Array.isArray(data) ? data : []).filter(req => req.status === 'Open');
-      console.log('Open Requests with Address:', openRequests.map(r => ({ id: r._id, name: r.customerName, address: r.address })));
-      setServiceRequests(openRequests);
+      const { data } = await http.get('/api/assigned-tickets/available-service-requests');
+      console.log('Available Service Requests Response:', data);
+      setServiceRequests(data || []);
     } catch (error) {
       console.error('Error fetching service requests:', error);
       setServiceRequests([]);
@@ -78,14 +87,11 @@ export default function AssignTicket() {
 
   const fetchOrders = async () => {
     try {
-      const { data } = await http.get('/api/orders');
-      let ordersData = data;
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        ordersData = data.orders || data.data || [];
-      }
-      const availableOrders = (Array.isArray(ordersData) ? ordersData : []).filter(order => order.status === 'delivered');
-      setOrders(availableOrders);
+      const { data } = await http.get('/api/assigned-tickets/available-orders');
+      console.log('Available Orders Response:', data);
+      setOrders(data || []);
     } catch (error) {
+      console.error('Error fetching orders:', error);
       setOrders([]);
     }
   };
@@ -102,10 +108,14 @@ export default function AssignTicket() {
         priority: ticket.priority || 'Medium',
         date: new Date(ticket.dueDate || ticket.createdAt).toISOString().split('T')[0],
         status: ticket.status || 'Pending',
-        desc: ticket.description || 'No description provided.',
+        desc: ticket.description || ticket.notes || 'No description provided.',
+        address: ticket.address || 'N/A',
         customerName: ticket.customerName,
         orderId: ticket.orderId?._id || ticket.orderId,
-        serviceRequestId: ticket.serviceRequestId?._id || ticket.serviceRequestId
+        serviceRequestId: ticket.serviceRequestId?._id || ticket.serviceRequestId,
+        completionPhotos: ticket.completionPhotos || [],
+        completionRemark: ticket.completionRemark || '',
+        completedAt: ticket.completedAt
       }));
       formattedTickets.sort((a, b) => new Date(b.date) - new Date(a.date));
       setTickets(formattedTickets);
@@ -131,8 +141,12 @@ export default function AssignTicket() {
         priority: formData.priority,
         dueDate: formData.date,
         description: formData.desc,
+        notes: formData.desc,
         status: 'Pending'
       };
+
+      console.log('Form Data:', formData);
+      console.log('Initial Ticket Data:', ticketData);
 
       if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
         const selectedRequest = serviceRequests.find(req => req._id === formData.serviceRequestId);
@@ -145,10 +159,12 @@ export default function AssignTicket() {
           ticketData.customerPhone = selectedRequest.customerPhone || selectedRequest.customerMobile;
           ticketData.customerEmail = selectedRequest.customerEmail;
           ticketData.address = selectedRequest.address || 'N/A';
-          console.log('Ticket Data with Address:', ticketData);
+          console.log('Final Ticket Data with Service Request Address:', ticketData.address);
+          console.log('Ticket Data with Service Request:', ticketData);
         }
       } else if (formData.ticketType === 'order' && formData.orderId) {
         const selectedOrder = orders.find(order => order._id === formData.orderId);
+        console.log('Selected Order:', selectedOrder);
         if (selectedOrder) {
           ticketData.orderId = selectedOrder._id;
           ticketData.userId = selectedOrder.userId;
@@ -156,20 +172,36 @@ export default function AssignTicket() {
           ticketData.customerPhone = selectedOrder.shippingAddress?.phone;
           ticketData.customerEmail = selectedOrder.shippingAddress?.email;
           ticketData.address = `${selectedOrder.shippingAddress?.addressLine1}, ${selectedOrder.shippingAddress?.city}`;
+          console.log('Ticket Data with Order:', ticketData);
         }
       }
+
+      console.log('Final Ticket Data before submission:', ticketData);
 
       if (editingTicket) {
         await http.put(`/api/assigned-tickets/${editingTicket.id}`, ticketData);
         Swal.fire("Success", "Ticket Updated", "success");
       } else {
-        await http.post('/api/assigned-tickets', ticketData);
-        Swal.fire("Success", "Ticket Created", "success");
+        const response = await http.post('/api/assigned-tickets', ticketData);
+        console.log('Ticket Creation Response:', response.data);
+        Swal.fire("Success", "Ticket Created Successfully", "success");
       }
-      fetchTickets();
+      
+      // Add a small delay to ensure database is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refresh all lists to update available options
+      console.log('Refreshing all lists...');
+      await Promise.all([
+        fetchTickets(),
+        fetchServiceRequests(),
+        fetchOrders()
+      ]);
+      
       handleCloseForm();
     } catch (error) {
-      Swal.fire("Error", "Failed to save ticket", "error");
+      console.error('Error in handleSubmit:', error);
+      Swal.fire("Error", "Failed to save ticket: " + (error.response?.data?.message || error.message), "error");
     }
   };
 
@@ -276,6 +308,8 @@ export default function AssignTicket() {
           >
             <FaPlus /> New Ticket
           </button>
+          
+
         </div>
       </div>
 
@@ -473,76 +507,142 @@ export default function AssignTicket() {
               </div>
 
               {formData.ticketType === 'service_request' && (
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>
                     Select Service Request ({serviceRequests.length} available)
                   </label>
-                  <select
-                    required
-                    value={formData.serviceRequestId}
-                    onChange={(e) => {
-                      const selected = serviceRequests.find(req => req._id === e.target.value);
-                      setFormData({ 
-                        ...formData, 
-                        serviceRequestId: e.target.value,
-                        title: selected ? `${selected.type} - ${selected.customerName}` : ''
-                      });
-                    }}
-                    className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text
-                    }}
-                  >
-                    <option value="">Choose service request</option>
-                    {serviceRequests.length === 0 ? (
-                      <option disabled>No open service requests</option>
-                    ) : (
-                      serviceRequests.map(req => (
-                        <option key={req._id} value={req._id}>
-                          {req.ticketId} - {req.customerName} - {req.type}
-                        </option>
-                      ))
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 rounded-xl border outline-none cursor-pointer"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text
+                      }}
+                      readOnly
+                      placeholder="Choose service request"
+                      onClick={() => setShowSrDropdown(!showSrDropdown)}
+                      value={
+                        formData.serviceRequestId
+                          ? serviceRequests.find(req => req._id === formData.serviceRequestId)
+                            ? `${serviceRequests.find(req => req._id === formData.serviceRequestId).ticketId} - ${serviceRequests.find(req => req._id === formData.serviceRequestId).customerName}`
+                            : formData.serviceRequestId
+                          : ''
+                      }
+                    />
+                    {showSrDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input
+                          type="text"
+                          placeholder="Search..."
+                          autoFocus
+                          value={srSearch}
+                          onChange={(e) => setSrSearch(e.target.value)}
+                          className="w-full p-2 mb-2 rounded-lg border text-sm outline-none"
+                          style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                        />
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {serviceRequests.filter(req => 
+                            `${req.ticketId} ${req.customerName} ${req.type}`.toLowerCase().includes(srSearch.toLowerCase())
+                          ).map((req) => (
+                            <div
+                              key={req._id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  serviceRequestId: req._id,
+                                  title: `${req.type} - ${req.customerName}`
+                                });
+                                setShowSrDropdown(false);
+                                setSrSearch("");
+                              }}
+                            >
+                              <div className="font-bold">{req.ticketId} - {req.customerName}</div>
+                              <div className="text-[10px] opacity-60 uppercase">{req.type} (Open)</div>
+                            </div>
+                          ))}
+                          {serviceRequests.filter(req => 
+                            `${req.ticketId} ${req.customerName} ${req.type}`.toLowerCase().includes(srSearch.toLowerCase())
+                          ).length === 0 && (
+                            <div className="p-3 text-center text-xs opacity-50">No service requests found</div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </select>
+                    {showSrDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowSrDropdown(false)}></div>}
+                  </div>
                 </div>
               )}
 
               {formData.ticketType === 'order' && (
-                <div>
+                <div className="relative">
                   <label className="block text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>
                     Select Order ({orders.length} available)
                   </label>
-                  <select
-                    required
-                    value={formData.orderId}
-                    onChange={(e) => {
-                      const selected = orders.find(order => order._id === e.target.value);
-                      setFormData({ 
-                        ...formData, 
-                        orderId: e.target.value,
-                        title: selected ? `Order Installation - ${selected.shippingAddress?.name}` : ''
-                      });
-                    }}
-                    className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text
-                    }}
-                  >
-                    <option value="">Choose order</option>
-                    {orders.length === 0 ? (
-                      <option disabled>No confirmed orders</option>
-                    ) : (
-                      orders.map(order => (
-                        <option key={order._id} value={order._id}>
-                          Order #{order._id.slice(-6)} - {order.shippingAddress?.name} - ₹{order.total}
-                        </option>
-                      ))
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 rounded-xl border outline-none cursor-pointer"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text
+                      }}
+                      readOnly
+                      placeholder="Choose order"
+                      onClick={() => setShowOrderDropdown(!showOrderDropdown)}
+                      value={
+                        formData.orderId
+                          ? orders.find(ord => ord._id === formData.orderId)
+                            ? `Order #${orders.find(ord => ord._id === formData.orderId)._id.slice(-6)} - ${orders.find(ord => ord._id === formData.orderId).shippingAddress?.name}`
+                            : formData.orderId
+                          : ''
+                      }
+                    />
+                    {showOrderDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input
+                          type="text"
+                          placeholder="Search..."
+                          autoFocus
+                          value={orderSearch}
+                          onChange={(e) => setOrderSearch(e.target.value)}
+                          className="w-full p-2 mb-2 rounded-lg border text-sm outline-none"
+                          style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                        />
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {orders.filter(ord => 
+                            `${ord._id} ${ord.shippingAddress?.name}`.toLowerCase().includes(orderSearch.toLowerCase())
+                          ).map((ord) => (
+                            <div
+                              key={ord._id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  orderId: ord._id,
+                                  title: `Order Installation - ${ord.shippingAddress?.name}`
+                                });
+                                setShowOrderDropdown(false);
+                                setOrderSearch("");
+                              }}
+                            >
+                              <div className="font-bold">Order #{ord._id.slice(-6)} - {ord.shippingAddress?.name}</div>
+                              <div className="text-[10px] opacity-60">₹{ord.total} (Delivered)</div>
+                            </div>
+                          ))}
+                          {orders.filter(ord => 
+                            `${ord._id} ${ord.shippingAddress?.name}`.toLowerCase().includes(orderSearch.toLowerCase())
+                          ).length === 0 && (
+                            <div className="p-3 text-center text-xs opacity-50">No orders found</div>
+                          )}
+                        </div>
+                      </div>
                     )}
-                  </select>
+                    {showOrderDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowOrderDropdown(false)}></div>}
+                  </div>
                 </div>
               )}
 
@@ -565,29 +665,66 @@ export default function AssignTicket() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>
-                  Assign To (Employee)
-                </label>
-                <select
-                  required
-                  value={formData.employee}
-                  onChange={(e) => setFormData({ ...formData, employee: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500"
-                  style={{
-                    backgroundColor: themeColors.background,
-                    borderColor: themeColors.border,
-                    color: themeColors.text
-                  }}
-                >
-                  <option value="">Select team member</option>
-                  {employees.map(emp => (
-                    <option key={emp._id} value={emp.name}>
-                      {emp.name} - {emp.designation || emp.role}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                <div className="relative">
+                  <label className="block text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>
+                    Assign To (Employee)
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 rounded-xl border outline-none cursor-pointer"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text
+                      }}
+                      readOnly
+                      placeholder="Select team member"
+                      onClick={() => setShowTechDropdown(!showTechDropdown)}
+                      value={formData.employee}
+                    />
+                    {showTechDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input
+                          type="text"
+                          placeholder="Search employee..."
+                          autoFocus
+                          value={techSearch}
+                          onChange={(e) => setTechSearch(e.target.value)}
+                          className="w-full p-2 mb-2 rounded-lg border text-sm outline-none"
+                          style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                        />
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {employees.filter(emp => 
+                            `${emp.name} ${emp.designation} ${emp.role}`.toLowerCase().includes(techSearch.toLowerCase())
+                          ).map((emp) => (
+                            <div
+                              key={emp._id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors"
+                              onClick={() => {
+                                setFormData({
+                                  ...formData,
+                                  employee: emp.name
+                                });
+                                setShowTechDropdown(false);
+                                setTechSearch("");
+                              }}
+                            >
+                              <div className="font-bold">{emp.name}</div>
+                              <div className="text-[10px] opacity-60 uppercase">{emp.designation || emp.role}</div>
+                            </div>
+                          ))}
+                          {employees.filter(emp => 
+                            `${emp.name} ${emp.designation} ${emp.role}`.toLowerCase().includes(techSearch.toLowerCase())
+                          ).length === 0 && (
+                            <div className="p-3 text-center text-xs opacity-50">No employees found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showTechDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowTechDropdown(false)}></div>}
+                  </div>
+                </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -670,7 +807,7 @@ export default function AssignTicket() {
       {isViewOpen && viewingTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div
-            className="rounded-2xl shadow-2xl max-w-lg w-full"
+            className="rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col"
             style={{ backgroundColor: themeColors.surface }}
           >
             <div className="p-6 border-b" style={{ borderColor: themeColors.border }}>
@@ -690,69 +827,166 @@ export default function AssignTicket() {
               </div>
             </div>
 
-            <div className="p-6 space-y-5">
-              <div>
-                <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Title</p>
-                <p className="font-bold text-lg" style={{ color: themeColors.text }}>{viewingTicket.title}</p>
-              </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Left Column: Basic Info */}
+                <div className="space-y-6">
+                  <div>
+                    <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Title</p>
+                    <p className="font-bold text-lg" style={{ color: themeColors.text }}>{viewingTicket.title}</p>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Assigned To</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">
-                      {viewingTicket.employee.charAt(0)}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Assigned To</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">
+                          {viewingTicket.employee.charAt(0)}
+                        </div>
+                        <span className="text-sm font-medium" style={{ color: themeColors.text }}>{viewingTicket.employee}</span>
+                      </div>
                     </div>
-                    <span className="text-sm font-medium" style={{ color: themeColors.text }}>{viewingTicket.employee}</span>
+                    <div>
+                      <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Priority</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${getPriorityColor(viewingTicket.priority)}`}>
+                        {viewingTicket.priority}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Due Date</p>
+                      <div className="flex items-center gap-2 text-sm mt-1" style={{ color: themeColors.text }}>
+                        <FaClock className="opacity-60" />
+                        {viewingTicket.date}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Status</p>
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${viewingTicket.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {viewingTicket.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Location / Address</p>
+                    <div className="p-4 rounded-xl border text-sm bg-blue-50/30 flex items-center gap-2" style={{ borderColor: themeColors.border, color: themeColors.text }}>
+                      <FaTicketAlt className="opacity-40" />
+                      <span className="font-bold">{viewingTicket.address || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Full Description</p>
+                    <div
+                      className="p-4 rounded-xl border text-sm max-h-40 overflow-y-auto"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text
+                      }}
+                    >
+                      {viewingTicket.desc || 'No additional instructions provided for this task.'}
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Priority</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${getPriorityColor(viewingTicket.priority)}`}>
-                    {viewingTicket.priority}
-                  </span>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Due Date</p>
-                  <div className="flex items-center gap-2 text-sm mt-1" style={{ color: themeColors.text }}>
-                    <FaClock className="opacity-60" />
-                    {viewingTicket.date}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase opacity-60 mb-1" style={{ color: themeColors.text }}>Status</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-1 ${viewingTicket.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                    {viewingTicket.status}
-                  </span>
-                </div>
-              </div>
+                {/* Right Column: Completion Info */}
+                <div className="space-y-6">
+                  {viewingTicket.status === 'Completed' ? (
+                    <div className="space-y-6">
+                      <div>
+                        <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Completion Remark</p>
+                        <div className="p-4 rounded-xl border text-sm italic bg-green-50/30" style={{ borderColor: themeColors.border, color: themeColors.text }}>
+                          {viewingTicket.completionRemark || 'No completion remarks provided.'}
+                        </div>
+                      </div>
 
-              <div>
-                <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Full Description</p>
-                <div
-                  className="p-4 rounded-xl border text-sm"
-                  style={{
-                    backgroundColor: themeColors.background,
-                    borderColor: themeColors.border,
-                    color: themeColors.text
-                  }}
-                >
-                  {viewingTicket.desc || 'No additional instructions provided for this task.'}
+                      {viewingTicket.completionPhotos && viewingTicket.completionPhotos.length > 0 && (
+                        <div>
+                          <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Completion Photos ({viewingTicket.completionPhotos.length})</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            {viewingTicket.completionPhotos.map((photo, idx) => (
+                              <div key={idx} className="aspect-video rounded-xl overflow-hidden border shadow-sm group relative" style={{ borderColor: themeColors.border }}>
+                                <img 
+                                  src={photo} 
+                                  alt={`Completion ${idx + 1}`} 
+                                  className="w-full h-full object-cover cursor-pointer hover:scale-110 transition duration-500"
+                                  onClick={() => {
+                                    setPreviewImage(photo);
+                                    setIsImagePreviewOpen(true);
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                                  <FaEye className="text-white text-xl" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {viewingTicket.completedAt && (
+                        <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100 flex items-center gap-3 text-xs" style={{ color: themeColors.text }}>
+                          <div className="w-8 h-8 bg-green-100 text-green-600 rounded-lg flex items-center justify-center">
+                            <FaCheck />
+                          </div>
+                          <div>
+                            <p className="font-bold text-green-700">Task Completed</p>
+                            <p className="opacity-70">{new Date(viewingTicket.completedAt).toLocaleString()}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50/50 rounded-3xl border-2 border-dashed border-slate-200">
+                      <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mb-4">
+                        <FaHourglassHalf className="text-slate-300 text-2xl animate-pulse" />
+                      </div>
+                      <p className="font-bold text-slate-400">Waiting for Completion</p>
+                      <p className="text-xs text-slate-400 mt-2">Employee has not marked this task as finished yet.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t" style={{ borderColor: themeColors.border }}>
+            <div className="p-6 border-t flex justify-end" style={{ borderColor: themeColors.border }}>
               <button
                 onClick={() => setIsViewOpen(false)}
-                className="w-full px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition"
+                className="px-10 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-lg shadow-blue-200"
               >
                 Close Preview
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Full Screen Image Preview Modal */}
+      {isImagePreviewOpen && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md cursor-pointer"
+          onClick={() => setIsImagePreviewOpen(false)}
+        >
+          <button 
+            className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all duration-300 transform hover:rotate-90"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsImagePreviewOpen(false);
+            }}
+          >
+            <FaTimes fontSize="24px" />
+          </button>
+          
+          <div className="relative max-w-5xl w-full h-full flex items-center justify-center p-12">
+            <img 
+              src={previewImage} 
+              alt="Full Preview" 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl animate-in zoom-in-95 duration-300"
+              onClick={(e) => e.stopPropagation()}
+            />
           </div>
         </div>
       )}

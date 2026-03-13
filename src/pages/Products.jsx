@@ -111,6 +111,11 @@ export default function Products() {
   const [qrCodeData, setQrCodeData] = useState(null); // For QR Modal
   const [qrVisible, setQrVisible] = useState(false);
 
+  const [categorySearch, setCategorySearch] = useState("");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [offerSearch, setOfferSearch] = useState("");
+  const [showOfferDropdown, setShowOfferDropdown] = useState(false);
+
   // ---------- fetchers ----------
   const fetchCategories = async () => {
     try {
@@ -1581,7 +1586,7 @@ export default function Products() {
                 </div>
 
                 {/* Category */}
-                <div>
+                <div className="relative">
                   <label
                     htmlFor="categoryId"
                     className="block mb-1 text-sm font-medium"
@@ -1589,25 +1594,56 @@ export default function Products() {
                   >
                     Category
                   </label>
-                  <select
-                    id="categoryId"
-                    name="categoryId"
-                    value={form.categoryId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                  >
-                    <option value="">Select category</option>
-                    {categories.map((c) => (
-                      <option key={c._id || c.id} value={c._id || c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 rounded-lg border text-sm cursor-pointer outline-none focus:ring-2"
+                      readOnly
+                      placeholder="Select category"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      value={form.categoryId ? categories.find(c => (c._id || c.id) === form.categoryId)?.name || "Select category" : ""}
+                    />
+                    {showCategoryDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <div className="relative mb-2">
+                          <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                          <input
+                            type="text"
+                            placeholder="Search category..."
+                            autoFocus
+                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                            value={categorySearch}
+                            onChange={e => setCategorySearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                            <div 
+                              key={c._id || c.id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
+                              onClick={() => {
+                                setForm({...form, categoryId: c._id || c.id});
+                                setShowCategoryDropdown(false);
+                                setCategorySearch("");
+                              }}
+                            >
+                              <span className="font-medium">{c.name}</span>
+                            </div>
+                          ))}
+                          {categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                            <div className="p-2 text-center text-xs opacity-50">No categories found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showCategoryDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowCategoryDropdown(false)}></div>}
+                  </div>
                 </div>
 
                 {/* Price */}
@@ -1665,7 +1701,7 @@ export default function Products() {
                 </div>
 
                 {/* Offer */}
-                <div>
+                <div className="relative">
                   <label
                     htmlFor="offerId"
                     className="block mb-1 text-sm font-medium"
@@ -1673,27 +1709,67 @@ export default function Products() {
                   >
                     Select Offer
                   </label>
-                  <select
-                    id="offerId"
-                    name="offerId"
-                    value={form.offerId}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded-lg border text-sm"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                  >
-                    <option value="">No Offer</option>
-                    {availableOffers
-                      .filter((o) => o.isActive)
-                      .map((o) => (
-                        <option key={o._id || o.id} value={o._id || o.id}>
-                          {o.title} ({o.code})
-                        </option>
-                      ))}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 rounded-lg border text-sm cursor-pointer outline-none focus:ring-2"
+                      readOnly
+                      placeholder="No Offer"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                      onClick={() => setShowOfferDropdown(!showOfferDropdown)}
+                      value={form.offerId ? availableOffers.find(o => (o._id || o.id) === form.offerId)?.title || "No Offer" : "No Offer"}
+                    />
+                    {showOfferDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <div className="relative mb-2">
+                          <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                          <input
+                            type="text"
+                            placeholder="Search offer..."
+                            autoFocus
+                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                            value={offerSearch}
+                            onChange={e => setOfferSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          <div 
+                            className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors text-red-500 font-bold"
+                            onClick={() => {
+                              setForm({...form, offerId: ""});
+                              setShowOfferDropdown(false);
+                              setOfferSearch("");
+                            }}
+                          >
+                            No Offer
+                          </div>
+                          {availableOffers.filter(o => o.isActive && (o.title?.toLowerCase().includes(offerSearch.toLowerCase()) || o.code?.toLowerCase().includes(offerSearch.toLowerCase()))).map(o => (
+                            <div 
+                              key={o._id || o.id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex flex-col"
+                              onClick={() => {
+                                setForm({...form, offerId: o._id || o.id});
+                                setShowOfferDropdown(false);
+                                setOfferSearch("");
+                              }}
+                            >
+                              <span className="font-bold">{o.title}</span>
+                              <span className="text-[10px] opacity-60 uppercase">{o.code}</span>
+                            </div>
+                          ))}
+                          {availableOffers.filter(o => o.isActive && (o.title?.toLowerCase().includes(offerSearch.toLowerCase()) || o.code?.toLowerCase().includes(offerSearch.toLowerCase()))).length === 0 && offerSearch && (
+                            <div className="p-2 text-center text-xs opacity-50">No offers found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showOfferDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowOfferDropdown(false)}></div>}
+                  </div>
                   {/* Dynamic Price Breakdown Preview */}
                   {form.price && (
                     <div

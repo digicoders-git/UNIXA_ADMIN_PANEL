@@ -3,7 +3,7 @@ import http from "./http";
 
 export const getCustomers = async (search = "") => {
   const query = search ? `?search=${encodeURIComponent(search)}` : "";
-  const response = await http.get(`/customers${query}`);
+  const response = await http.get(`/api/customers${query}`);
   return response.data;
 };
 

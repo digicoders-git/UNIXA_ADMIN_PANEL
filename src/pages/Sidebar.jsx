@@ -178,14 +178,26 @@ const Sidebar = ({
           className="flex items-center justify-between h-16 px-4 border-b"
           style={{ borderColor: themeColors.border }}
         >
-          <div className="flex items-center">
-           
-            <h1
-              className="text-xl font-bold"
-              style={{ color: themeColors.primary }}
-            >
-              Unixa Admin
-            </h1>
+          <div className="flex items-center gap-3">
+            <img 
+              src="/sks-logo.png" 
+              alt="UNIXA Logo" 
+              className="w-8 h-8 object-contain" 
+            />
+            <div className="flex flex-col">
+              <h1
+                className="text-lg font-bold leading-tight"
+                style={{ color: themeColors.primary }}
+              >
+                UNIXA
+              </h1>
+              <span 
+                className="text-xs font-semibold uppercase tracking-wide"
+                style={{ color: themeColors.textSecondary }}
+              >
+                Admin Panel
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -225,17 +237,28 @@ const Sidebar = ({
             className="flex items-center mb-4 p-3 rounded-lg"
             style={{ backgroundColor: themeColors.background }}
           >
-            <div
-              className="w-10 h-10 rounded-full flex items-center justify-center mr-3 border"
-              style={{
-                backgroundColor: themeColors.primary,
-                color: themeColors.onPrimary,
-                borderColor: themeColors.border,
-              }}
-              aria-hidden="true"
-            >
-              <FaUserCircle className="text-lg" />
-            </div>
+            {user?.profilePicture ? (
+              <img
+                src={user.profilePicture}
+                alt={user.name || "Admin"}
+                className="w-10 h-10 rounded-full mr-3 border object-cover"
+                style={{
+                  borderColor: themeColors.border,
+                }}
+              />
+            ) : (
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center mr-3 border"
+                style={{
+                  backgroundColor: themeColors.primary,
+                  color: themeColors.onPrimary,
+                  borderColor: themeColors.border,
+                }}
+                aria-hidden="true"
+              >
+                <FaUserCircle className="text-lg" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p
                 className="font-medium text-sm truncate"

@@ -1,10 +1,12 @@
 // src/pages/OfflineOrders.jsx
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { listOrders, updateOrderStatus, createOfflineOrder, deleteOrder, updateOrderDetails } from "../apis/orders";
 import { listProducts } from "../apis/products";
 import { listAmcPlans } from "../apis/amcPlans";
+import { getCustomersFromOrders } from "../apis/customers";
 import Highcharts from "highcharts";
 import HighchartsReact from "highcharts-react-official";
 import {
@@ -170,7 +172,8 @@ const InvoiceModal = ({ order, isOpen, onClose }) => {
                                         {item.amcPlan && (
                                             <p className="text-[10px] font-bold flex items-center gap-2" style={{ color: '#3b82f6' }}>
                                                 <span className="w-1 h-1 rounded-full" style={{ backgroundColor: '#3b82f6' }}></span>
-                                                AMC PLAN: <span className="uppercase tracking-tight" style={{ color: '#0f172a' }}>{item.amcPlan}</span>
+                                                {/* Use amcName if available, otherwise fallback to ID or generic text */}
+                                                AMC PLAN: <span className="uppercase tracking-tight" style={{ color: '#0f172a' }}>{item.amcPlanName || (typeof item.amcPlan === 'string' && item.amcPlan.length > 10 ? 'Covered' : item.amcPlan)}</span>
                                             </p>
                                         )}
                                     </div>
@@ -209,6 +212,7 @@ const InvoiceModal = ({ order, isOpen, onClose }) => {
 export default function OfflineOrders() {
   const { themeColors } = useTheme();
   const { currentFont } = useFont();
+  const navigate = useNavigate();
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -237,6 +241,11 @@ export default function OfflineOrders() {
     paymentStatus: "paid",
     status: "confirmed",
   });
+
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [amcSearch, setAmcSearch] = useState("");
+  const [showAmcDropdown, setShowAmcDropdown] = useState(false);
 
   // Invoice Modal
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -344,8 +353,9 @@ export default function OfflineOrders() {
             price: itemPrice,
             productPrice: product.price || product.sellingPrice || 0,
             quantity: parseInt(newItem.quantity),
-            amcId: amc ? amc._id : undefined,
-            amcPlan: amc ? amc.name : undefined,
+            amcId: amc ? (amc.amcId || `AMC-${Date.now()}`) : undefined,
+            amcPlan: amc ? amc._id : undefined,
+            amcPlanName: amc ? amc.name : undefined,
             amcPrice: amcPrice,
           },
         ],
@@ -413,10 +423,10 @@ export default function OfflineOrders() {
             shippingAddress: {
                 name: orderForm.customerName,
                 phone: orderForm.customerPhone,
-                addressLine1: orderForm.customerAddress,
-                city: orderForm.customerCity,
-                state: orderForm.customerState,
-                pincode: orderForm.customerPincode,
+                addressLine1: orderForm.customerAddress || "N/A",
+                city: orderForm.customerCity || "N/A",
+                state: orderForm.customerState || "N/A",
+                pincode: orderForm.customerPincode || "000000",
             },
             paymentMethod: orderForm.paymentMethod,
             paymentStatus: orderForm.paymentStatus,
@@ -435,20 +445,21 @@ export default function OfflineOrders() {
             shippingAddress: {
               name: orderForm.customerName,
               phone: orderForm.customerPhone,
-              addressLine1: orderForm.customerAddress,
-              city: orderForm.customerCity,
-              state: orderForm.customerState,
-              pincode: orderForm.customerPincode,
+              addressLine1: orderForm.customerAddress || "N/A",
+              city: orderForm.customerCity || "N/A",
+              state: orderForm.customerState || "N/A",
+              pincode: orderForm.customerPincode || "000000",
             },
             items: orderForm.items.map((it) => ({
               productId: it.productId, 
               quantity: it.quantity,
               productPrice: it.productPrice,
-              amcPrice: it.amcPrice,
+              amcPrice: it.amcPrice || 0,
               price: it.price,
               productName: it.name,
-              amcId: it.amcId,
-              amcPlan: it.amcPlan,
+              amcId: it.amcId || null,
+              amcPlan: it.amcPlan || null,
+              amcPlanName: it.amcPlanName || null,
             })),
             total: totalAmount,
             paymentMethod: orderForm.paymentMethod,
@@ -517,6 +528,23 @@ export default function OfflineOrders() {
         } catch (e) {
           Swal.fire("Error", "Failed to update status", "error");
         }
+  };
+
+  const handleViewHistory = async (order) => {
+    try {
+      // Get all customers and find by phone number
+      const customers = await getCustomersFromOrders("");
+      const customer = customers.find(c => c.mobile === order.shippingAddress?.phone);
+      
+      if (customer) {
+        navigate(`/customer-detail/${customer._id}`);
+      } else {
+        Swal.fire("Info", "Customer not found in system. Please add customer first.", "info");
+      }
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "Failed to load customer history", "error");
+    }
   };
 
   const handleOpenInvoice = (order) => {
@@ -631,31 +659,112 @@ export default function OfflineOrders() {
                   <div className="border-t pt-4" style={{ borderColor: themeColors.border }}>
                     <h3 className="font-bold mb-2" style={{ color: themeColors.text }}>Items</h3>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-4">
-                        <div className="md:col-span-2">
-                            <select 
-                                className="w-full border rounded p-2"
-                                value={newItem.productId}
-                                onChange={e => setNewItem({...newItem, productId: e.target.value})}
-                                style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
-                            >
-                                <option value="">Select Product...</option>
-                                {products.map(p => (
-                                    <option key={p._id || p.id} value={p._id || p.id}>{p.name} - {fmtCurrency(p.price || p.sellingPrice)}</option>
-                                ))}
-                            </select>
+                        <div className="md:col-span-2 relative">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="w-full border rounded p-2 cursor-pointer outline-none"
+                                    readOnly
+                                    placeholder="Select Product..."
+                                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                    onClick={() => setShowProductDropdown(!showProductDropdown)}
+                                    value={
+                                        newItem.productId 
+                                        ? products.find(p => (p._id || p.id) === newItem.productId)?.name || "Select Product..."
+                                        : ""
+                                    }
+                                />
+                                {showProductDropdown && (
+                                    <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search products..."
+                                            autoFocus
+                                            className="w-full p-2 mb-2 rounded border text-sm outline-none"
+                                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                            value={productSearch}
+                                            onChange={e => setProductSearch(e.target.value)}
+                                        />
+                                        <div className="max-h-60 overflow-y-auto space-y-1">
+                                            {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).map(p => (
+                                                <div 
+                                                    key={p._id || p.id}
+                                                    className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm transition-colors flex justify-between items-center"
+                                                    onClick={() => {
+                                                        setNewItem({...newItem, productId: p._id || p.id});
+                                                        setShowProductDropdown(false);
+                                                        setProductSearch("");
+                                                    }}
+                                                >
+                                                    <span className="font-bold">{p.name}</span>
+                                                    <span className="text-xs opacity-60">{fmtCurrency(p.price || p.sellingPrice)}</span>
+                                                </div>
+                                            ))}
+                                            {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                                                <div className="p-3 text-center text-xs opacity-50">No products found</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {showProductDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowProductDropdown(false)}></div>}
+                            </div>
                         </div>
-                        <div>
-                            <select 
-                                className="w-full border rounded p-2"
-                                value={newItem.amcId}
-                                onChange={e => setNewItem({...newItem, amcId: e.target.value})}
-                                style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
-                            >
-                                <option value="">No AMC</option>
-                                {amcPlans.map(p => (
-                                    <option key={p._id} value={p._id}>{p.name} (+{fmtCurrency(p.price)})</option>
-                                ))}
-                            </select>
+                        <div className="relative">
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    className="w-full border rounded p-2 cursor-pointer outline-none"
+                                    readOnly
+                                    placeholder="No AMC"
+                                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                    onClick={() => setShowAmcDropdown(!showAmcDropdown)}
+                                    value={
+                                        newItem.amcId 
+                                        ? amcPlans.find(a => a._id === newItem.amcId)?.name || "No AMC"
+                                        : "No AMC"
+                                    }
+                                />
+                                {showAmcDropdown && (
+                                    <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Search plans..."
+                                            autoFocus
+                                            className="w-full p-2 mb-2 rounded border text-sm outline-none"
+                                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                            value={amcSearch}
+                                            onChange={e => setAmcSearch(e.target.value)}
+                                        />
+                                        <div className="max-h-40 overflow-y-auto space-y-1">
+                                            <div 
+                                                className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm transition-colors"
+                                                onClick={() => {
+                                                    setNewItem({...newItem, amcId: ""});
+                                                    setShowAmcDropdown(false);
+                                                    setAmcSearch("");
+                                                }}
+                                            >
+                                                No AMC
+                                            </div>
+                                            {amcPlans.filter(p => p.name.toLowerCase().includes(amcSearch.toLowerCase())).map(p => (
+                                                <div 
+                                                    key={p._id}
+                                                    className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm transition-colors flex justify-between items-center"
+                                                    onClick={() => {
+                                                        setNewItem({...newItem, amcId: p._id});
+                                                        setShowAmcDropdown(false);
+                                                        setAmcSearch("");
+                                                    }}
+                                                >
+                                                    <span className="font-bold">{p.name}</span>
+                                                    <span className="text-xs opacity-60">+{fmtCurrency(p.price)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {showAmcDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowAmcDropdown(false)}></div>}
+                            </div>
                         </div>
                         <div className="flex gap-2">
                             <input 
@@ -867,6 +976,13 @@ export default function OfflineOrders() {
                                     className="bg-slate-800 text-white px-2 py-1 rounded text-xs flex items-center gap-1 hover:bg-slate-900"
                                 >
                                     <Download size={10} /> Invoice
+                                </button>
+                                <button 
+                                    onClick={() => handleViewHistory(Order)}
+                                    className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs hover:bg-purple-200"
+                                    title="View History"
+                                >
+                                    History
                                 </button>
                             </td>
                         </tr>

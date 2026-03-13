@@ -281,20 +281,29 @@ export default function AmcPlans() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Price (₹)</label>
-                  <input
-                    type="number"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className="w-full p-2 rounded border"
-                    required
-                  />
+                <input
+                  type="number"
+                  value={form.price}
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
+                  className={`w-full p-2 rounded border ${parseInt(form.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  required
+                  disabled={parseInt(form.durationMonths) === 0}
+                />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Duration (Months)</label>
                   <input
                     type="number"
                     value={form.durationMonths}
-                    onChange={(e) => setForm({ ...form, durationMonths: e.target.value })}
+                    onChange={(e) => {
+                        const dur = parseInt(e.target.value);
+                        setForm({ 
+                            ...form, 
+                            durationMonths: dur,
+                            price: dur === 0 ? 0 : form.price,
+                            servicesIncluded: dur === 0 ? 0 : form.servicesIncluded
+                        });
+                    }}
                     className="w-full p-2 rounded border"
                     required
                   />
@@ -306,9 +315,10 @@ export default function AmcPlans() {
                   type="number"
                   value={form.servicesIncluded}
                   onChange={(e) => setForm({ ...form, servicesIncluded: e.target.value })}
-                  className="w-full p-2 rounded border"
+                  className={`w-full p-2 rounded border ${parseInt(form.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   placeholder="Number of services included"
                   required
+                  disabled={parseInt(form.durationMonths) === 0}
                 />
               </div>
               <div>

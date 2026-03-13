@@ -8,7 +8,7 @@ export const listOrders = async () => {
   return Array.isArray(data) ? data : data.orders || [];
 };
 
-// PATCH /api/orders/:orderId/status  (admin update status)
+// PUT /api/orders/:orderId/status  (admin update status)
 export const updateOrderStatus = async (orderId, status) => {
   const { data } = await http.put(`/api/orders/${orderId}/status`, {
     status,
@@ -18,18 +18,23 @@ export const updateOrderStatus = async (orderId, status) => {
 
 // Create a new offline order
 export const createOfflineOrder = async (orderData) => {
-  const { data } = await http.post("/api/orders", { ...orderData, source: "offline" });
+  console.log("Creating offline order");
+  const { data } = await http.post("/api/orders", { 
+    ...orderData, 
+    source: "offline" 
+  });
+  console.log("Order created response:", data);
   return data;
 };
 
 // DELETE /api/orders/:orderId
 export const deleteOrder = async (orderId) => {
-    const { data } = await http.delete(`/api/orders/${orderId}`);
-    return data;
+  const { data } = await http.delete(`/api/orders/${orderId}`);
+  return data;
 };
 
 // PATCH /api/orders/:orderId (update details)
 export const updateOrderDetails = async (orderId, details) => {
-    const { data } = await http.patch(`/api/orders/${orderId}`, details);
-    return data;
+  const { data } = await http.patch(`/api/orders/${orderId}`, details);
+  return data;
 };

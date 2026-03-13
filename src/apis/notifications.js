@@ -30,3 +30,7 @@ export const getDashboardStats = async () => {
   const response = await http.get("/api/manager-dashboard/stats");
   return response.data;
 };
+export const createUserSpecificNotification = async (data) => {
+  const response = await http.post("/api/notifications/user-notifications", data);
+  return response.data;
+};

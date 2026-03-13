@@ -30,6 +30,9 @@ export default function RentalPlanManagement() {
   });
   const [imagePreview, setImagePreview] = useState(null);
 
+  const [productSearch, setProductSearch] = useState("");
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+
   useEffect(() => {
     fetchPlans();
     fetchAmcPlans();
@@ -407,19 +410,64 @@ export default function RentalPlanManagement() {
 
               {/* Linked Product & Description */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
+                 <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Link RO Product (Model)</label>
-                    <select
-                      name="productId"
-                      value={formData.productId}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                      <option value="">-- No Product Linked --</option>
-                      {allProducts.map(p => (
-                        <option key={p._id} value={p._id}>{p.name}</option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                        <input 
+                            type="text"
+                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer bg-white"
+                            readOnly
+                            placeholder="-- No Product Linked --"
+                            onClick={() => setShowProductDropdown(!showProductDropdown)}
+                            value={formData.productId ? allProducts.find(p => (p._id || p.id) === formData.productId)?.name || "No Product Linked" : "No Product Linked"}
+                        />
+                        {showProductDropdown && (
+                            <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-white">
+                                <div className="relative mb-2">
+                                    <div className="absolute left-3 top-2.5 opacity-40 text-xs">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Search product..."
+                                        autoFocus
+                                        className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                                        value={productSearch}
+                                        onChange={e => setProductSearch(e.target.value)}
+                                    />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto space-y-1">
+                                    <div 
+                                        className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors text-red-500 font-bold"
+                                        onClick={() => {
+                                            setFormData({...formData, productId: ""});
+                                            setShowProductDropdown(false);
+                                            setProductSearch("");
+                                        }}
+                                    >
+                                        -- No Product Linked --
+                                    </div>
+                                    {allProducts.filter(p => p.name?.toLowerCase().includes(productSearch.toLowerCase())).map(p => (
+                                        <div 
+                                            key={p._id || p.id}
+                                            className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
+                                            onClick={() => {
+                                                setFormData({...formData, productId: p._id || p.id});
+                                                setShowProductDropdown(false);
+                                                setProductSearch("");
+                                            }}
+                                        >
+                                            <span className="font-medium">{p.name}</span>
+                                        </div>
+                                    ))}
+                                    {allProducts.filter(p => p.name?.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && productSearch && (
+                                        <div className="p-2 text-center text-xs opacity-50">No products found</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {showProductDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowProductDropdown(false)}></div>}
+                    </div>
                  </div>
                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Brief Description</label>

@@ -1,22 +1,44 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { FaShieldAlt, FaSearch, FaUser, FaPhone, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaEye, FaClock, FaSms } from "react-icons/fa";
+import { useNavigate } from "react-router-dom";
+import { FaShieldAlt, FaSearch, FaUser, FaPhone, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaEye, FaClock, FaSms, FaTools, FaHistory } from "react-icons/fa";
 import http from "../apis/http";
 import Swal from "sweetalert2";
 
 export default function UserAMCManagement() {
   const { themeColors } = useTheme();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userAmcs, setUserAmcs] = useState([]);
   const [dueAmcs, setDueAmcs] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [stats, setStats] = useState({ total: 0, active: 0, expired: 0, revenue: 0, expiringSoon: 0, dueServices: 0 });
+  const [employees, setEmployees] = useState([]);
+  
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedAmcForBooking, setSelectedAmcForBooking] = useState(null);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+  const [bookingForm, setBookingForm] = useState({
+      employeeName: "",
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+  });
 
   useEffect(() => {
     fetchUserAmcs();
     fetchDueAmcs();
+    fetchEmployees();
   }, []);
+
+  const fetchEmployees = async () => {
+      try {
+          const { data } = await http.get('/api/employees');
+          setEmployees(data.filter(emp => emp.role !== 'Manager'));
+      } catch (err) {
+          console.error("Error fetching employees:", err);
+      }
+  };
 
   const fetchUserAmcs = async () => {
     setLoading(true);
@@ -26,37 +48,46 @@ export default function UserAMCManagement() {
       const amcs = data.amcs || [];
       setUserAmcs(amcs);
 
-      // Calculate stats
+      // Calculate stats with proper status logic
+      const now = new Date();
       const activeCount = amcs.filter(a => {
-        const isDateExpired = new Date(a.endDate) < new Date();
+        const endDate = new Date(a.endDate);
+        const isDateExpired = endDate < now;
         const isServicesExhausted = (a.servicesUsed || 0) >= (a.servicesTotal || 4);
         return a.status === 'Active' && !isDateExpired && !isServicesExhausted;
       }).length;
 
       const expiredCount = amcs.filter(a => {
-        const isDateExpired = new Date(a.endDate) < new Date();
+        const endDate = new Date(a.endDate);
+        const isDateExpired = endDate < now;
         const isServicesExhausted = (a.servicesUsed || 0) >= (a.servicesTotal || 4);
-        return a.status === 'Expired' || isDateExpired || isServicesExhausted;
+        return a.status === 'Expired' || (a.status === 'Active' && (isDateExpired || isServicesExhausted));
       }).length;
 
       const expiringSoonCount = amcs.filter(a => {
-        const isDateExpired = new Date(a.endDate) < new Date();
+        const endDate = new Date(a.endDate);
+        const isDateExpired = endDate < now;
         const isServicesExhausted = (a.servicesUsed || 0) >= (a.servicesTotal || 4);
-        const daysLeft = Math.ceil((new Date(a.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        if (a.status !== 'Active' || isDateExpired || isServicesExhausted) return false;
+        
+        const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
         const servicesRemaining = (a.servicesTotal || 4) - (a.servicesUsed || 0);
 
-        // Expiring soon if: date within 120 days OR only 1 service remaining
         const isDateExpiringSoon = daysLeft > 0 && daysLeft <= 120;
         const isServicesExpiringSoon = servicesRemaining === 1;
 
-        return a.status === 'Active' && !isDateExpired && !isServicesExhausted && (isDateExpiringSoon || isServicesExpiringSoon);
+        return isDateExpiringSoon || isServicesExpiringSoon;
       }).length;
+
+      const renewedCount = amcs.filter(a => a.status === 'Renewed').length;
 
       setStats(prev => ({
         ...prev,
         total: amcs.length,
         active: activeCount,
         expired: expiredCount,
+        renewed: renewedCount,
         revenue: amcs.reduce((sum, a) => sum + (a.amcPlanPrice || 0), 0),
         expiringSoon: expiringSoonCount
       }));
@@ -81,64 +112,73 @@ export default function UserAMCManagement() {
     }
   };
 
-  const createServiceTicket = async (amc) => {
-    const { value: employeeName } = await Swal.fire({
-      title: 'Assign Service Ticket',
-      text: `Assigning service #${amc.nextServiceNumber} for ${amc.userId?.firstName}`,
-      input: 'select',
-      inputOptions: async () => {
-        try {
-          const { data } = await http.get('/api/employees');
-          const options = {};
-          data.forEach(emp => {
-            if (emp.role !== 'Manager') {
-              options[emp.name] = `${emp.name} (${emp.designation || emp.role})`;
-            }
-          });
-          return options;
-        } catch (error) {
-          return { '': 'Failed to load employees' };
-        }
-      },
-      inputPlaceholder: 'Select an employee',
-      showCancelButton: true,
-      confirmButtonText: 'Assign',
-      showLoaderOnConfirm: true,
-    });
+  const handleBookService = (amc) => {
+    const startDate = new Date(amc.startDate);
+    const now = new Date();
+    const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
 
-    if (employeeName) {
-      try {
-        const adminData = JSON.parse(localStorage.getItem('admin-data') || '{}');
-
-        // Get user's primary address
-        const primaryAddress = amc.userId?.addresses?.find(addr => addr.isDefault || addr.isPrimary) || amc.userId?.addresses?.[0];
-        const addressString = primaryAddress
-          ? `${primaryAddress.addressLine1 || ''}, ${primaryAddress.city || ''}, ${primaryAddress.state || ''} ${primaryAddress.pincode || ''}`.trim()
-          : 'N/A';
-
-        await http.post('/api/assigned-tickets', {
-          title: `AMC Service - ${amc.userId?.firstName} ${amc.userId?.lastName}`,
-          ticketType: 'service_request',
-          customerName: `${amc.userId?.firstName} ${amc.userId?.lastName}`,
-          customerPhone: amc.userId?.phone,
-          customerEmail: amc.userId?.email,
-          address: addressString,
-          description: `Regular AMC Service #${amc.nextServiceNumber} for ${amc.productName}.`,
-          priority: 'Medium',
-          status: 'Pending',
-          assignedBy: adminData.name || 'Admin',
-          assignedTo: employeeName,
-          amcId: amc._id,
-          userId: amc.userId?._id,
-          dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
-        Swal.fire('Success', 'Service ticket assigned successfully', 'success');
-        fetchDueAmcs(); // Refresh due list
-      } catch (error) {
-        console.error('Error assigning ticket:', error);
-        Swal.fire('Error', 'Failed to assign ticket', 'error');
-      }
+    if (monthsElapsed < 4) {
+      Swal.fire('Not Eligible', `This AMC is only ${monthsElapsed} months old. Service can be booked after 4 months.`, 'info');
+      // No return here, allowing admin to override if they want? 
+      // Actually the previous code returned, so let's keep it.
+      return;
     }
+
+    setSelectedAmcForBooking(amc);
+    setBookingForm({
+        employeeName: "",
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingSubmit = async (e) => {
+      e.preventDefault();
+      if (!bookingForm.employeeName) {
+          Swal.fire("Error", "Please select an employee", "error");
+          return;
+      }
+
+      try {
+          const adminData = JSON.parse(localStorage.getItem('admin-data') || '{}');
+          const primaryAddress = selectedAmcForBooking.userId?.addresses?.find(addr => addr.isDefault || addr.isPrimary) || selectedAmcForBooking.userId?.addresses?.[0];
+          const addressString = primaryAddress
+            ? `${primaryAddress.addressLine1 || ''}, ${primaryAddress.city || ''}, ${primaryAddress.state || ''} ${primaryAddress.pincode || ''}`.trim()
+            : 'N/A';
+
+          await http.post('/api/assigned-tickets', {
+            title: `AMC Service - ${selectedAmcForBooking.userId?.firstName} ${selectedAmcForBooking.userId?.lastName}`,
+            ticketType: 'service_request',
+            customerName: `${selectedAmcForBooking.userId?.firstName} ${selectedAmcForBooking.userId?.lastName}`,
+            customerPhone: selectedAmcForBooking.userId?.phone,
+            customerEmail: selectedAmcForBooking.userId?.email,
+            address: addressString,
+            description: `AMC Service for ${selectedAmcForBooking.productName} (${selectedAmcForBooking.amcPlanName}).`,
+            priority: 'Medium',
+            status: 'Pending',
+            assignedBy: adminData.name || 'Admin',
+            assignedTo: bookingForm.employeeName,
+            amcId: selectedAmcForBooking._id,
+            userId: selectedAmcForBooking.userId?._id,
+            dueDate: bookingForm.dueDate
+          });
+          Swal.fire('Success', 'Service ticket assigned successfully', 'success');
+          setIsBookingModalOpen(false);
+          fetchUserAmcs();
+          fetchDueAmcs();
+      } catch (error) {
+          console.error('Error assigning ticket:', error);
+          Swal.fire('Error', 'Failed to assign ticket', 'error');
+      }
+  };
+
+  const createServiceTicket = (amc) => {
+    setSelectedAmcForBooking(amc);
+    setBookingForm({
+        employeeName: "",
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    });
+    setIsBookingModalOpen(true);
   };
 
   const handleNotifyUser = async (amc) => {
@@ -231,23 +271,31 @@ export default function UserAMCManagement() {
       title: 'Renew AMC Subscription',
       html: `
         <div class="text-left space-y-4">
-          <p class="text-sm"><strong>Customer:</strong> ${amc.userId?.firstName} ${amc.userId?.lastName}</p>
-          <p class="text-sm"><strong>Product:</strong> ${amc.productName}</p>
+          <div class="bg-gray-50 p-3 rounded border">
+            <p class="text-sm font-bold text-gray-700 mb-2">Current AMC Details:</p>
+            <p class="text-sm"><strong>Customer:</strong> ${amc.userId?.firstName} ${amc.userId?.lastName}</p>
+            <p class="text-sm"><strong>Product:</strong> ${amc.productName}</p>
+            <p class="text-sm"><strong>Plan:</strong> ${amc.amcPlanName}</p>
+            <p class="text-sm"><strong>Original Price:</strong> ₹${amc.amcPlanPrice}</p>
+          </div>
           <div class="space-y-2 mt-4">
             <label class="block text-xs font-bold text-gray-700">Duration (Months)</label>
-            <input id="renew-duration" type="number" value="12" class="w-full p-2 border rounded text-sm" />
+            <input id="renew-duration" type="number" value="12" min="1" max="60" class="w-full p-2 border rounded text-sm" />
           </div>
           <div class="space-y-2">
             <label class="block text-xs font-bold text-gray-700">Total Services</label>
-            <input id="renew-services" type="number" value="${amc.servicesTotal || 4}" class="w-full p-2 border rounded text-sm" />
+            <input id="renew-services" type="number" value="${amc.servicesTotal || 4}" min="1" max="20" class="w-full p-2 border rounded text-sm" />
           </div>
           <div class="space-y-2">
-            <label class="block text-xs font-bold text-gray-700">Renewal Price (Optional)</label>
-            <input id="renew-price" type="number" placeholder="${amc.amcPlanPrice || 0}" class="w-full p-2 border rounded text-sm" />
+            <label class="block text-xs font-bold text-gray-700">Renewal Price</label>
+            <input id="renew-price" type="number" value="${amc.amcPlanPrice || 0}" min="0" class="w-full p-2 border rounded text-sm" />
           </div>
           <div class="space-y-2">
             <label class="block text-xs font-bold text-gray-700">Start Date</label>
             <input id="renew-start" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full p-2 border rounded text-sm" />
+          </div>
+          <div class="text-xs text-red-600 mt-2">
+            <strong>Note:</strong> This will create a new AMC record and mark the current one as expired.
           </div>
         </div>
       `,
@@ -255,20 +303,63 @@ export default function UserAMCManagement() {
       confirmButtonText: 'Confirm Renewal',
       confirmButtonColor: '#059669',
       preConfirm: () => {
+        const duration = parseInt(document.getElementById('renew-duration').value);
+        const services = parseInt(document.getElementById('renew-services').value);
+        const price = parseFloat(document.getElementById('renew-price').value);
+        const startDate = document.getElementById('renew-start').value;
+        
+        if (!duration || duration < 1) {
+          Swal.showValidationMessage('Duration must be at least 1 month');
+          return false;
+        }
+        if (!services || services < 1) {
+          Swal.showValidationMessage('Services must be at least 1');
+          return false;
+        }
+        if (!price || price < 0) {
+          Swal.showValidationMessage('Price must be a valid amount');
+          return false;
+        }
+        if (!startDate) {
+          Swal.showValidationMessage('Start date is required');
+          return false;
+        }
+        
         return {
-          durationMonths: parseInt(document.getElementById('renew-duration').value),
-          servicesTotal: parseInt(document.getElementById('renew-services').value),
-          pricePaid: parseFloat(document.getElementById('renew-price').value || amc.amcPlanPrice || 0),
-          startDate: document.getElementById('renew-start').value
+          durationMonths: duration,
+          servicesTotal: services,
+          pricePaid: price,
+          startDate: startDate
         };
       }
     });
 
     if (result.isConfirmed) {
       try {
-        await http.post(`/api/my-amcs/admin/renew/${amc._id}`, result.value);
-        Swal.fire('Renewed!', 'AMC subscription has been renewed successfully.', 'success');
-        fetchUserAmcs();
+        const response = await http.post(`/api/my-amcs/admin/renew/${amc._id}`, result.value);
+        
+        // Show detailed success message
+        await Swal.fire({
+          title: 'AMC Renewed Successfully!',
+          html: `
+            <div class="text-left space-y-2">
+              <p class="text-sm"><strong>Customer:</strong> ${amc.userId?.firstName} ${amc.userId?.lastName}</p>
+              <p class="text-sm"><strong>Product:</strong> ${amc.productName}</p>
+              <p class="text-sm"><strong>New Duration:</strong> ${result.value.durationMonths} months</p>
+              <p class="text-sm"><strong>Services:</strong> ${result.value.servicesTotal} visits</p>
+              <p class="text-sm"><strong>Amount:</strong> ₹${result.value.pricePaid}</p>
+              <div class="mt-3 p-2 bg-green-50 rounded text-xs text-green-700">
+                <strong>Note:</strong> A new AMC record has been created. The previous AMC has been marked as expired.
+              </div>
+            </div>
+          `,
+          icon: 'success',
+          confirmButtonText: 'OK',
+          confirmButtonColor: '#059669'
+        });
+        
+        fetchUserAmcs(); // Refresh the list
+        fetchDueAmcs(); // Refresh due services
       } catch (err) {
         console.error('Renewal error:', err);
         Swal.fire('Error', 'Failed to renew AMC: ' + (err.response?.data?.message || 'Server error'), 'error');
@@ -284,18 +375,27 @@ export default function UserAMCManagement() {
     if (statusFilter === "Due for Service") return dueAmcs;
 
     return userAmcs.filter(amc => {
-      const isDateExpired = new Date(amc.endDate) < new Date();
+      // Calculate actual status based on current conditions
+      const now = new Date();
+      const endDate = new Date(amc.endDate);
+      const isDateExpired = endDate < now;
       const isServicesExhausted = (amc.servicesUsed || 0) >= (amc.servicesTotal || 4);
-      const actualStatus = (isDateExpired || isServicesExhausted) ? 'Expired' : amc.status;
+      
+      // Determine actual status (override database status if needed)
+      let actualStatus = amc.status;
+      if (amc.status === 'Active' && (isDateExpired || isServicesExhausted)) {
+        actualStatus = 'Expired';
+      }
 
-      const daysLeft = Math.ceil((new Date(amc.endDate) - new Date()) / (1000 * 60 * 60 * 24));
+      const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
       const servicesRemaining = (amc.servicesTotal || 4) - (amc.servicesUsed || 0);
 
-      // Expiring soon if: date within 120 days OR only 1 service remaining
-      const isDateExpiringSoon = daysLeft > 0 && daysLeft <= 120;
-      const isServicesExpiringSoon = servicesRemaining === 1;
-      const isExpiringSoon = actualStatus === 'Active' && (isDateExpiringSoon || isServicesExpiringSoon);
+      // Expiring soon logic
+      const isDateExpiringSoon = actualStatus === 'Active' && daysLeft > 0 && daysLeft <= 120;
+      const isServicesExpiringSoon = actualStatus === 'Active' && servicesRemaining === 1;
+      const isExpiringSoon = isDateExpiringSoon || isServicesExpiringSoon;
 
+      // Filter by status
       let matchesStatus = false;
       if (statusFilter === "All") {
         matchesStatus = true;
@@ -305,14 +405,32 @@ export default function UserAMCManagement() {
         matchesStatus = actualStatus === statusFilter;
       }
 
+      // Filter by search
       const matchesSearch =
         amc.productName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.amcPlanName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.userId?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.userId?.lastName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.userId?.phone?.includes(search);
+        
       return matchesStatus && matchesSearch;
     });
+  })();
+
+  // Grouping logic
+  const groupedAmcs = (() => {
+    const groups = {};
+    filteredAmcs.forEach(amc => {
+      const phone = amc.userId?.phone || 'Unknown';
+      if (!groups[phone]) {
+        groups[phone] = {
+          user: amc.userId || { firstName: 'Unknown', lastName: '', phone },
+          items: []
+        };
+      }
+      groups[phone].items.push(amc);
+    });
+    return Object.values(groups);
   })();
 
   const StatCard = ({ title, value, icon: Icon, color }) => (
@@ -341,14 +459,15 @@ export default function UserAMCManagement() {
         <StatCard title="Active" value={stats.active} icon={FaCheckCircle} color="text-emerald-600" />
         <StatCard title="Expired" value={stats.expired} icon={FaTimesCircle} color="text-red-600" />
         <StatCard title="Due Service" value={stats.dueServices} icon={FaClock} color="text-orange-600" />
+        <StatCard title="Renewed" value={stats.renewed || 0} icon={FaCheckCircle} color="text-blue-600" />
         <StatCard title="Expiring Soon" value={stats.expiringSoon} icon={FaClock} color="text-yellow-600" />
-        <StatCard title="Revenue" value={`₹${stats.revenue.toLocaleString()}`} icon={FaCalendarAlt} color="text-purple-600" />
+        <StatCard title="Revenue" value={`\u20b9${stats.revenue.toLocaleString()}`} icon={FaCalendarAlt} color="text-purple-600" />
       </div>
 
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4 justify-between">
         <div className="flex flex-wrap gap-2 p-1 rounded-lg border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-          {["All", "Active", "Due for Service", "Expiring Soon", "Expired", "Cancelled"].map(status => (
+          {["All", "Active", "Due for Service", "Expiring Soon", "Expired", "Renewed", "Cancelled"].map(status => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -392,121 +511,268 @@ export default function UserAMCManagement() {
             <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
               {loading ? (
                 <tr><td colSpan="9" className="p-8 text-center">Loading...</td></tr>
-              ) : filteredAmcs.length === 0 ? (
+              ) : groupedAmcs.length === 0 ? (
                 <tr><td colSpan="9" className="p-8 text-center opacity-50">No AMC subscriptions found</td></tr>
               ) : (
-                filteredAmcs.map(amc => {
-                  const daysLeft = Math.ceil((new Date(amc.endDate) - new Date()) / (1000 * 60 * 60 * 24));
-                  const servicesRemaining = (amc.servicesTotal || 4) - (amc.servicesUsed || 0);
-                  const isDateExpiringSoon = daysLeft > 0 && daysLeft <= 30;
-                  const isServicesExpiringSoon = servicesRemaining === 1;
-                  const isDateExpired = new Date(amc.endDate) < new Date();
-                  const isServicesExhausted = (amc.servicesUsed || 0) >= (amc.servicesTotal || 4);
-                  const displayStatus = (isDateExpired || isServicesExhausted) ? 'Expired' : amc.status;
-
-                  const isDueForService = dueAmcs.some(d => d._id === amc._id);
-
-                  return (
-                    <tr key={amc._id} className="hover:bg-black/5">
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <FaUser className="text-blue-600" />
-                          <div>
-                            <div className="font-bold">{amc.userId?.firstName} {amc.userId?.lastName}</div>
-                            <div className="text-xs opacity-60 flex items-center gap-1">
-                              <FaPhone size={10} /> {amc.userId?.phone}
+                groupedAmcs.map((group, gIdx) => (
+                  <tr key={group.user.phone || gIdx} className="hover:bg-black/5" style={{ verticalAlign: 'top' }}>
+                    {/* Customer Column - Merged for the whole row */}
+                    <td className="p-4 align-top border-r" style={{ borderColor: themeColors.border }}>
+                      <div className="flex items-center gap-2 sticky top-4">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                          {group.user.firstName?.[0] || 'U'}
+                        </div>
+                        <div>
+                          <div className="font-bold text-base">{group.user.firstName} {group.user.lastName}</div>
+                          <div className="text-sm opacity-70 flex items-center gap-1 mt-1">
+                            <FaPhone size={12} className="text-blue-600" /> 
+                            <span className="font-semibold">{group.user.phone}</span>
+                          </div>
+                          {group.items.length > 1 && (
+                            <div className="mt-2">
+                              <span className="bg-blue-600 text-white text-[11px] px-2 py-1 rounded-full font-bold shadow-sm">
+                                {group.items.length} ACTIVE PRODUCTS
+                              </span>
                             </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium">{amc.productName}</div>
-                        <div className="text-xs opacity-60">{amc.productType || 'Product'}</div>
-                      </td>
-                      <td className="p-4">
-                        <div className="font-bold text-blue-600">{amc.amcPlanName}</div>
-                        <div className="text-xs opacity-60 text-red-500">
-                          {isDueForService ? `Next Due: ${new Date(dueAmcs.find(d => d._id === amc._id).nextServiceDueDate).toLocaleDateString()}` : ''}
-                        </div>
-                      </td>
-                      <td className="p-4 font-bold text-green-600">₹{amc.amcPlanPrice?.toLocaleString()}</td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-xs">
-                          <FaCalendarAlt className="text-green-600" />
-                          {new Date(amc.startDate).toLocaleDateString('en-IN')}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 text-xs">
-                          <FaCalendarAlt className="text-red-600" />
-                          {new Date(amc.endDate).toLocaleDateString('en-IN')}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold flex items-center gap-1 w-fit ${displayStatus === 'Active' ? 'bg-green-50 text-green-700' :
-                          displayStatus === 'Expired' ? 'bg-red-50 text-red-700' :
-                            displayStatus === 'Cancelled' ? 'bg-gray-50 text-gray-700' :
-                              'bg-yellow-50 text-yellow-700'
-                          }`}>
-                          {displayStatus === 'Active' ? <FaCheckCircle /> : <FaTimesCircle />}
-                          {displayStatus}
-                        </span>
-                        {(isDateExpiringSoon || isServicesExpiringSoon) && displayStatus === 'Active' && (
-                          <div className="text-xs text-orange-600 font-bold mt-1 flex items-center gap-1">
-                            <FaTimesCircle size={10} />
-                            {isServicesExpiringSoon ? 'Last Service!' : `${daysLeft}d left`}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <div className={`font-bold ${servicesRemaining === 1 ? 'text-orange-600' : servicesRemaining === 0 ? 'text-red-600' : ''}`}>
-                          {amc.servicesUsed || 0}/{amc.servicesTotal || 4}
-                        </div>
-                        <div className={`text-xs ${servicesRemaining === 1 ? 'text-orange-600 font-bold' : servicesRemaining === 0 ? 'text-red-600 font-bold' : 'opacity-60'}`}>
-                          {servicesRemaining} left
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-2">
-                          {isDueForService && (
-                            <button
-                              onClick={() => createServiceTicket(amc)}
-                              className="px-3 py-1 bg-orange-600 text-white rounded text-xs font-bold hover:bg-orange-700 transition"
-                            >
-                              Assign Service
-                            </button>
-                          )}
-                          {(isServicesExhausted || servicesRemaining === 1 || isDateExpiringSoon || displayStatus === 'Expired') && (
-                            <>
-                              <button
-                                onClick={() => handleNotifyUser(amc)}
-                                className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 transition flex items-center gap-1 justify-center"
-                              >
-                                <FaSms size={10} /> Notify
-                              </button>
-                              {(displayStatus === 'Expired' || servicesRemaining === 0) && (
-                                <button
-                                  onClick={() => handleRenewAmc(amc)}
-                                  className="px-3 py-1 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 transition flex items-center gap-1 justify-center"
-                                >
-                                  <FaShieldAlt size={10} /> Renew AMC
-                                </button>
-                              )}
-                            </>
-                          )}
-                          {!isDueForService && amc.status === 'Active' && !isServicesExhausted && servicesRemaining > 1 && !isDateExpiringSoon && (
-                            <span className="text-xs opacity-40 italic">Next service later</span>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                      </div>
+                    </td>
+
+                    {/* All other columns - Sub-rows for each AMC */}
+                    <td colSpan="8" className="p-0">
+                      <table className="w-full border-collapse">
+                        <tbody>
+                          {group.items.map((amc, idx) => {
+                            const now = new Date();
+                            const endDate = new Date(amc.endDate);
+                            const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+                            const servicesRemaining = (amc.servicesTotal || 4) - (amc.servicesUsed || 0);
+
+                            const isDateExpired = endDate < now;
+                            const isServicesExhausted = (amc.servicesUsed || 0) >= (amc.servicesTotal || 4);
+                            const displayStatus = (amc.status === 'Active' && (isDateExpired || isServicesExhausted)) ? 'Expired' : amc.status;
+
+                            const isDateExpiringSoon = displayStatus === 'Active' && daysLeft > 0 && daysLeft <= 30;
+                            const isServicesExpiringSoon = displayStatus === 'Active' && servicesRemaining === 1;
+                            const isDueForService = dueAmcs.some(d => d._id === amc._id);
+
+                            return (
+                              <tr key={amc._id} className={`${idx > 0 ? 'border-t' : ''} hover:bg-blue-50/10 transition-colors`} style={{ borderColor: themeColors.border }}>
+                                <td className="p-4 w-[12%]">
+                                  <div className="font-bold text-gray-800">{amc.productName}</div>
+                                  <div className="text-[10px] uppercase tracking-wider opacity-50 font-bold">{amc.productType || 'Product'}</div>
+                                </td>
+                                <td className="p-4 w-[12%]">
+                                  <div className="font-bold text-blue-700">{amc.amcPlanName}</div>
+                                  {isDueForService && (
+                                    <div className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-bold mt-1 w-fit">
+                                      SERVICE DUE
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-4 w-[10%] font-bold text-green-600">₹{amc.amcPlanPrice?.toLocaleString()}</td>
+                                <td className="p-4 w-[10%] whitespace-nowrap">
+                                  <div className="flex items-center gap-1.5 text-xs font-semibold">
+                                    <FaCalendarAlt className="text-green-500" size={12} />
+                                    {new Date(amc.startDate).toLocaleDateString('en-IN')}
+                                  </div>
+                                </td>
+                                <td className="p-4 w-[10%] whitespace-nowrap">
+                                  <div className="flex items-center gap-1.5 text-xs font-semibold">
+                                    <FaCalendarAlt className="text-red-500" size={12} />
+                                    {new Date(amc.endDate).toLocaleDateString('en-IN')}
+                                  </div>
+                                </td>
+                                <td className="p-4 w-[12%]">
+                                  <div className="flex flex-col gap-1">
+                                    <span className={`px-2 py-1 rounded-md text-[10px] font-extrabold flex items-center gap-1 w-fit uppercase tracking-tight ${
+                                      displayStatus === 'Active' ? 'bg-green-100 text-green-700 shadow-sm' :
+                                      displayStatus === 'Expired' ? 'bg-red-100 text-red-700 shadow-sm' :
+                                      displayStatus === 'Renewed' ? 'bg-blue-100 text-blue-700 shadow-sm' :
+                                      'bg-yellow-100 text-yellow-700 shadow-sm'
+                                    }`}>
+                                      {displayStatus === 'Active' ? <FaCheckCircle /> : displayStatus === 'Renewed' ? <FaCheckCircle /> : <FaTimesCircle />}
+                                      {displayStatus}
+                                    </span>
+                                    {(isDateExpiringSoon || isServicesExpiringSoon) && displayStatus === 'Active' && (
+                                      <div className="text-[10px] text-orange-600 font-bold flex items-center gap-1 animate-pulse">
+                                        <FaClock size={10} />
+                                        {isServicesExpiringSoon ? 'LAST SERVICE' : `${daysLeft}D LEFT`}
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-4 w-[10%]">
+                                  <div className={`text-sm font-bold ${servicesRemaining <= 1 ? 'text-red-600' : 'text-blue-600'}`}>
+                                    {amc.servicesUsed || 0} / {amc.servicesTotal || 4}
+                                  </div>
+                                  <div className="text-[10px] opacity-60 font-bold uppercase">Used</div>
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex flex-wrap gap-1.5 min-w-[140px]">
+                                    <button
+                                      onClick={() => navigate(`/user-amc-history/${amc.userId?.phone}`)}
+                                      className="p-1.5 bg-purple-50 text-purple-600 rounded-md hover:bg-purple-600 hover:text-white transition shadow-sm border border-purple-100"
+                                      title="History"
+                                    >
+                                      <FaHistory size={14} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleBookService(amc)}
+                                      className="p-1.5 bg-green-50 text-green-600 rounded-md hover:bg-green-600 hover:text-white transition shadow-sm border border-green-100"
+                                      title="Book Service"
+                                    >
+                                      <FaTools size={14} />
+                                    </button>
+                                    {isDueForService && (
+                                      <button
+                                        onClick={() => createServiceTicket(amc)}
+                                        className="p-1.5 bg-orange-50 text-orange-600 rounded-md hover:bg-orange-600 hover:text-white transition shadow-sm border border-orange-100"
+                                        title="Assign Service"
+                                      >
+                                        <FaClock size={14} />
+                                      </button>
+                                    )}
+                                    {displayStatus !== 'Renewed' && (isServicesExhausted || servicesRemaining === 1 || isDateExpiringSoon || displayStatus === 'Expired') && (
+                                      <>
+                                        <button
+                                          onClick={() => handleNotifyUser(amc)}
+                                          className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-600 hover:text-white transition shadow-sm border border-blue-100"
+                                          title="Notify User"
+                                        >
+                                          <FaSms size={14} />
+                                        </button>
+                                        {(displayStatus === 'Expired' || servicesRemaining === 0) && (
+                                          <button
+                                            onClick={() => handleRenewAmc(amc)}
+                                            className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md hover:bg-emerald-600 hover:text-white transition shadow-sm border border-emerald-100"
+                                            title="Renew AMC"
+                                          >
+                                            <FaShieldAlt size={14} />
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>
         </div>
       </div>
+      {/* Booking Modal */}
+      {isBookingModalOpen && selectedAmcForBooking && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div 
+                className="rounded-xl shadow-xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200"
+                style={{ backgroundColor: themeColors.surface, color: themeColors.text }}
+              >
+                  <h2 className="text-xl font-bold mb-4 flex items-center gap-2 border-b pb-3" style={{ borderColor: themeColors.border }}>
+                      <FaTools className="text-blue-600" /> Assign Service Ticket
+                  </h2>
+                  
+                  <div className="p-3 bg-blue-50 rounded-lg text-sm mb-4 border border-blue-100">
+                      <p className="font-bold text-blue-800 mb-1 leading-tight">
+                          {selectedAmcForBooking.nextServiceNumber ? `Service #${selectedAmcForBooking.nextServiceNumber}` : "Manual Service Booking"}
+                      </p>
+                      <p className="text-blue-700 opacity-90">
+                          {selectedAmcForBooking.userId?.firstName} {selectedAmcForBooking.userId?.lastName} - {selectedAmcForBooking.productName}
+                      </p>
+                  </div>
+
+                  <form onSubmit={handleBookingSubmit} className="space-y-4">
+                      <div className="relative">
+                          <label className="block text-xs font-bold uppercase opacity-60 mb-1">Select Technician</label>
+                          <div className="relative">
+                              <input
+                                  type="text"
+                                  className="w-full border rounded-lg p-3 cursor-pointer outline-none focus:ring-2 focus:ring-blue-500"
+                                  readOnly
+                                  placeholder="-- Select Technician --"
+                                  style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                  onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+                                  value={bookingForm.employeeName}
+                              />
+                              {showEmployeeDropdown && (
+                                  <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                                      <div className="relative mb-2">
+                                          <FaSearch className="absolute left-3 top-3 opacity-40" />
+                                          <input
+                                              type="text"
+                                              placeholder="Search technician..."
+                                              autoFocus
+                                              className="w-full pl-9 p-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                                              style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                              value={employeeSearch}
+                                              onChange={e => setEmployeeSearch(e.target.value)}
+                                          />
+                                      </div>
+                                      <div className="max-h-60 overflow-y-auto space-y-1">
+                                          {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).map(emp => (
+                                              <div 
+                                                  key={emp._id}
+                                                  className="p-3 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
+                                                  onClick={() => {
+                                                      setBookingForm({...bookingForm, employeeName: emp.name});
+                                                      setShowEmployeeDropdown(false);
+                                                      setEmployeeSearch("");
+                                                  }}
+                                              >
+                                                  <span className="font-bold">{emp.name}</span>
+                                                  <span className="text-[10px] opacity-60 uppercase font-bold bg-gray-100 px-2 py-0.5 rounded">{emp.designation || emp.role}</span>
+                                              </div>
+                                          ))}
+                                          {employees.filter(emp => emp.name.toLowerCase().includes(employeeSearch.toLowerCase())).length === 0 && (
+                                              <div className="p-3 text-center text-xs opacity-50">No technicians found</div>
+                                          )}
+                                      </div>
+                                  </div>
+                              )}
+                              {showEmployeeDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowEmployeeDropdown(false)}></div>}
+                          </div>
+                      </div>
+
+                      <div>
+                          <label className="block text-xs font-bold uppercase opacity-60 mb-1">Due Date</label>
+                          <input 
+                              type="date"
+                              value={bookingForm.dueDate}
+                              onChange={e => setBookingForm({...bookingForm, dueDate: e.target.value})}
+                              className="w-full p-3 rounded-lg border outline-none focus:ring-2 focus:ring-blue-500"
+                              style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                          />
+                      </div>
+
+                      <div className="flex gap-3 mt-6">
+                          <button 
+                            type="button" 
+                            onClick={() => setIsBookingModalOpen(false)} 
+                            className="flex-1 px-4 py-3 rounded-lg border font-bold hover:bg-gray-100 transition"
+                            style={{ borderColor: themeColors.border }}
+                          >
+                              Cancel
+                          </button>
+                          <button 
+                            type="submit" 
+                            className="flex-1 px-4 py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition"
+                          >
+                              Assign Now
+                          </button>
+                      </div>
+                  </form>
+              </div>
+          </div>
+      )}
+
     </div>
   );
 }

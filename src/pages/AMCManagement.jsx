@@ -61,9 +61,23 @@ export default function AMCManagement() {
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
   const [allCustomers, setAllCustomers] = useState([]);
 
+  const [employees, setEmployees] = useState([]);
+  const [techSearch, setTechSearch] = useState("");
+  const [showTechDropdown, setShowTechDropdown] = useState(false);
+
   useEffect(() => {
     fetchAmcPlans();
-  }, [filterType, search]); // Re-fetch on filter change if backend handles it well, or client side logic
+    fetchEmployees();
+  }, [filterType, search]);
+
+  const fetchEmployees = async () => {
+      try {
+          const { data } = await http.get('/api/employees');
+          setEmployees(data.filter(emp => emp.role !== 'Manager'));
+      } catch (err) {
+          console.error("Error fetching employees:", err);
+      }
+  };
 
   // Debounced search for customers in Create Modal
   useEffect(() => {
@@ -705,10 +719,20 @@ export default function AMCManagement() {
                               <label className="block text-sm font-medium mb-1" style={{ color: themeColors.text }}>Duration (Months)</label>
                               <select 
                                     value={renewForm.durationMonths} 
-                                    onChange={e=>setRenewForm({...renewForm, durationMonths: e.target.value})} 
+                                    onChange={e=>{
+                                        const dur = parseInt(e.target.value);
+                                        setRenewForm({
+                                            ...renewForm, 
+                                            durationMonths: dur,
+                                            amount: dur === 0 ? 0 : renewForm.amount,
+                                            amountPaid: dur === 0 ? 0 : renewForm.amountPaid,
+                                            servicesTotal: dur === 0 ? 0 : renewForm.servicesTotal
+                                        });
+                                    }} 
                                     className="w-full p-2 rounded border"
                                     style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
                               >
+                                  <option value={0}>0 Days</option>
                                   <option value={6}>6 Months</option>
                                   <option value={12}>1 Year</option>
                                   <option value={24}>2 Years</option>
@@ -721,8 +745,9 @@ export default function AMCManagement() {
                                 type="number" 
                                 value={renewForm.amount} 
                                 onChange={e=>setRenewForm({...renewForm, amount: e.target.value})} 
-                                className="w-full p-2 rounded border"
+                                className={`w-full p-2 rounded border ${parseInt(renewForm.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                disabled={parseInt(renewForm.durationMonths) === 0}
                             />
                         </div>
                          <div>
@@ -731,8 +756,9 @@ export default function AMCManagement() {
                                 type="number" 
                                 value={renewForm.amountPaid} 
                                 onChange={e=>setRenewForm({...renewForm, amountPaid: e.target.value})} 
-                                className="w-full p-2 rounded border"
+                                className={`w-full p-2 rounded border ${parseInt(renewForm.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                disabled={parseInt(renewForm.durationMonths) === 0}
                             />
                         </div>
                         <div>
@@ -741,8 +767,9 @@ export default function AMCManagement() {
                                 type="number" 
                                 value={renewForm.servicesTotal} 
                                 onChange={e=>setRenewForm({...renewForm, servicesTotal: e.target.value})} 
-                                className="w-full p-2 rounded border"
+                                className={`w-full p-2 rounded border ${parseInt(renewForm.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                disabled={parseInt(renewForm.durationMonths) === 0}
                             />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
@@ -830,10 +857,19 @@ export default function AMCManagement() {
                               <label className="block text-sm font-medium mb-1" style={{ color: themeColors.text }}>Duration (Months)</label>
                               <select 
                                     value={createForm.durationMonths} 
-                                    onChange={e=>setCreateForm({...createForm, durationMonths: e.target.value})} 
+                                    onChange={e=>{
+                                        const dur = parseInt(e.target.value);
+                                        setCreateForm({
+                                            ...createForm, 
+                                            durationMonths: dur,
+                                            amount: dur === 0 ? 0 : createForm.amount,
+                                            servicesTotal: dur === 0 ? 0 : createForm.servicesTotal
+                                        });
+                                    }} 
                                     className="w-full p-2 rounded border"
                                     style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
                               >
+                                  <option value={0}>0 Days</option>
                                   <option value={6}>6 Months</option>
                                   <option value={12}>1 Year</option>
                                   <option value={24}>2 Years</option>
@@ -846,8 +882,9 @@ export default function AMCManagement() {
                                 type="number" 
                                 value={createForm.amount} 
                                 onChange={e=>setCreateForm({...createForm, amount: e.target.value})} 
-                                className="w-full p-2 rounded border"
+                                className={`w-full p-2 rounded border ${parseInt(createForm.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                disabled={parseInt(createForm.durationMonths) === 0}
                             />
                         </div>
                         <div>
@@ -856,8 +893,9 @@ export default function AMCManagement() {
                                 type="number" 
                                 value={createForm.servicesTotal} 
                                 onChange={e=>setCreateForm({...createForm, servicesTotal: e.target.value})} 
-                                className="w-full p-2 rounded border"
+                                className={`w-full p-2 rounded border ${parseInt(createForm.durationMonths) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                disabled={parseInt(createForm.durationMonths) === 0}
                             />
                         </div>
                         <div className="flex items-center gap-2 pt-6">
@@ -870,15 +908,55 @@ export default function AMCManagement() {
                             />
                             <label htmlFor="partsCreate" className="text-sm font-medium cursor-pointer" style={{ color: themeColors.text }}>Include Free Parts?</label>
                         </div>
-                         <div>
+                         <div className="relative">
                             <label className="block text-sm font-medium mb-1" style={{ color: themeColors.text }}>Technician (Optional)</label>
-                            <input 
-                                type="text" 
-                                value={createForm.assignedTechnician} 
-                                onChange={e=>setCreateForm({...createForm, assignedTechnician: e.target.value})} 
-                                className="w-full p-2 rounded border"
-                                style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
-                            />
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    readOnly
+                                    placeholder="-- Select Technician --"
+                                    value={createForm.assignedTechnician || ""} 
+                                    onClick={() => setShowTechDropdown(!showTechDropdown)}
+                                    className="w-full p-2 rounded border cursor-pointer outline-none focus:ring-2 focus:ring-blue-500"
+                                    style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                />
+                                {showTechDropdown && (
+                                    <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                                        <div className="relative mb-2">
+                                            <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                                            <input
+                                                type="text"
+                                                placeholder="Search technician..."
+                                                autoFocus
+                                                className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                                                style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                                                value={techSearch}
+                                                onChange={e => setTechSearch(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="max-h-48 overflow-y-auto space-y-1">
+                                            {employees.filter(emp => emp.name.toLowerCase().includes(techSearch.toLowerCase())).map(emp => (
+                                                <div 
+                                                    key={emp._id}
+                                                    className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
+                                                    onClick={() => {
+                                                        setCreateForm({...createForm, assignedTechnician: emp.name});
+                                                        setShowTechDropdown(false);
+                                                        setTechSearch("");
+                                                    }}
+                                                >
+                                                    <span className="font-bold">{emp.name}</span>
+                                                    <span className="text-[10px] opacity-60 uppercase font-bold bg-gray-100 px-2 py-0.5 rounded">{emp.designation || emp.role}</span>
+                                                </div>
+                                            ))}
+                                            {employees.filter(emp => emp.name.toLowerCase().includes(techSearch.toLowerCase())).length === 0 && (
+                                                <div className="p-2 text-center text-xs opacity-50">No employees found</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {showTechDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowTechDropdown(false)}></div>}
+                            </div>
                         </div>
                      </div>
                       

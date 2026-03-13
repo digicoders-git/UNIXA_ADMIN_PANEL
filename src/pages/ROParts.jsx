@@ -60,6 +60,9 @@ export default function ROParts() {
   const [qrCodeData, setQrCodeData] = useState(null);
   const [qrVisible, setQrVisible] = useState(false);
 
+  const [categorySearch, setCategorySearch] = useState("");
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -372,15 +375,53 @@ export default function ROParts() {
                     className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
                   />
                 </div>
-                <div>
+                <div className="relative">
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Category *</label>
-                  <select
-                    name="categoryId" required value={form.categoryId} onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white text-sm"
-                  >
-                    <option value="">Select Category</option>
-                    {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
-                  </select>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm cursor-pointer bg-white"
+                      readOnly
+                      placeholder="Select Category"
+                      onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                      value={form.categoryId ? categories.find(c => c._id === form.categoryId)?.name || "Select Category" : ""}
+                    />
+                    {showCategoryDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-white" style={{ borderColor: themeColors.border }}>
+                        <div className="relative mb-2">
+                          <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                          <input
+                            type="text"
+                            placeholder="Search category..."
+                            autoFocus
+                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                            value={categorySearch}
+                            onChange={e => setCategorySearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
+                            <div 
+                              key={c._id}
+                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
+                              onClick={() => {
+                                setForm({...form, categoryId: c._id});
+                                setShowCategoryDropdown(false);
+                                setCategorySearch("");
+                              }}
+                            >
+                              <span className="font-medium text-slate-800">{c.name}</span>
+                            </div>
+                          ))}
+                          {categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).length === 0 && (
+                            <div className="p-2 text-center text-xs opacity-50">No categories found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showCategoryDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowCategoryDropdown(false)}></div>}
+                  </div>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>

@@ -1,11 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { Suspense } from "react";
+import { Suspense, lazy } from "react";
 import { useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import DashboardLayout from "./components/DashboardLayout";
 import BlogView from "./pages/BlogView";
 import { Toaster } from "sonner";
 import routes from "./route/SidebarRaoute";
+
+const UserAMCHistory = lazy(() => import("./pages/UserAMCHistory"));
 
 const LoadingSpinner = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -43,6 +45,7 @@ function App() {
               />
             ))}
             <Route path="/blogs/view/:id" element={<BlogView />} />
+            <Route path="/user-amc-history/:phone" element={<Suspense fallback={<LoadingSpinner />}><UserAMCHistory /></Suspense>} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         ) : (

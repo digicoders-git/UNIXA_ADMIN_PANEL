@@ -49,6 +49,11 @@ const ROParts = lazy(() => import("../pages/ROParts"));
 const RentalPlanManagement = lazy(() => import("../pages/RentalPlanManagement"));
 const AssignTicket = lazy(() => import("../pages/AssignTicket"));
 const LeadManagement = lazy(() => import("../pages/LeadManagement"));
+const AmcJobs = lazy(() => import("../pages/AmcJobs"));
+const CustomerProductHistory = lazy(() => import("../pages/CustomerProductHistory"));
+const CustomerDetailPage = lazy(() => import("../pages/CustomerDetailPage"));
+const UserAMCHistory = lazy(() => import("../pages/UserAMCHistory"));
+const SMSMessages = lazy(() => import("../pages/SMSMessages"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
@@ -66,14 +71,14 @@ const routes = [
   { path: "/rental-plans", component: RentalPlanManagement, name: "Rental Plans", icon: FaBox },
   { path: "/stock", component: StockManagement, name: "Stock Management", icon: FaDolly },
   { path: "/offers", component: Offers, name: "Offers", icon: FaCoins },
-  
+
   // Orders Group
   {
     name: "Orders",
     icon: FaShoppingCart,
     children: [
-       { path: "/orders", component: Orders, name: "Online Orders", icon: FaShoppingCart },
-       { path: "/offline-orders", component: OfflineOrders, name: "Offline Orders", icon: FaShoppingCart },
+      { path: "/orders", component: Orders, name: "Online Orders", icon: FaShoppingCart },
+      { path: "/offline-orders", component: OfflineOrders, name: "Offline Orders", icon: FaShoppingCart },
     ]
   },
 
@@ -88,10 +93,14 @@ const routes = [
   { path: "/employee-assets", component: EmployeeAssets, name: "Employee Assets", icon: FaArchive },
   { path: "/assets-history", component: AssetsHistory, name: "Assets History", icon: FaArchive },
   { path: "/customers", component: Customers, name: "Customers", icon: FaUsers },
+  { path: "/customer-history", component: CustomerProductHistory, name: "Customer History", icon: FaBox },
+  { path: "/customer-detail/:customerId", component: CustomerDetailPage, name: "Customer Detail", icon: FaBox, hide: true },
   // { path: "/amc-plans", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
   { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench },
+  { path: "/amc-jobs", component: AmcJobs, name: "AMC Service Jobs", icon: FaWrench },
   { path: "/assign-ticket", component: AssignTicket, name: "Assign Tickets", icon: FaTicketAlt },
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },
+  { path: "/sms-center", component: SMSMessages, name: "SMS Center", icon: FaEnvelopeOpenText },
   { path: "/refunds", component: Refunds, name: "Refund Requests", icon: FaUndo },
   { path: "/change-password", component: ChangePassword, name: "Change Password", icon: FaKey },
 ];

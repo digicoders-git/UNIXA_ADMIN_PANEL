@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { getNotifications, sendNotification, deleteNotification } from "../apis/notifications";
+import { getNotifications, sendNotification, deleteNotification, createUserSpecificNotification } from "../apis/notifications";
+import { getAllUsers } from "../apis/users";
+import { getEmployees } from "../apis/employees";
 import {
   FaBell,
   FaPaperPlane,
@@ -29,8 +31,12 @@ export default function Notifications() {
       title: "",
       message: "",
       audience: "All",
-      type: "Info"
+      type: "Info",
+      userId: "" // Added for specific user
   });
+
+  const [users, setUsers] = useState([]);
+  const [userSearch, setUserSearch] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -39,8 +45,18 @@ export default function Notifications() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await getNotifications();
-      setNotifications(res || []);
+      const [notifsRes, usersRes, empRes] = await Promise.all([
+        getNotifications(),
+        getAllUsers(),
+        getEmployees()
+      ]);
+      setNotifications(notifsRes || []);
+      // Combine Users and Employees for selection
+      const allPossibleUsers = [
+        ...(usersRes || []).map(u => ({ ...u, type: 'Customer', dispName: `${u.firstName} ${u.lastName}` })),
+        ...(empRes || []).map(e => ({ ...e, type: e.role || 'Employee', dispName: e.name }))
+      ];
+      setUsers(allPossibleUsers);
     } catch (err) {
       console.error(err);
     } finally {
@@ -51,10 +67,25 @@ export default function Notifications() {
   const handleSendSubmit = async (e) => {
     e.preventDefault();
     try {
-        await sendNotification(sendForm);
+        if (sendForm.audience === "Specific") {
+          if (!sendForm.userId) {
+            Swal.fire("Error", "Please select a user", "error");
+            return;
+          }
+          await createUserSpecificNotification({
+            userId: sendForm.userId,
+            title: sendForm.title,
+            message: sendForm.message,
+            type: sendForm.type
+          });
+        } else {
+          await sendNotification(sendForm);
+        }
+        
         Swal.fire("Success", "Notification Sent Successfully", "success");
         setIsSendModalOpen(false);
-        setSendForm({ title: "", message: "", audience: "All", type: "Info" });
+        setSendForm({ title: "", message: "", audience: "All", type: "Info", userId: "" });
+        setUserSearch("");
         fetchData();
     } catch (err) {
         console.log(err);
@@ -215,8 +246,51 @@ export default function Notifications() {
                                <option value="All">All Users & Customers</option>
                                <option value="Customers">Customers Only</option>
                                <option value="Employees">Employees Only</option>
+                               <option value="Specific">Specific User</option>
                            </select>
                        </div>
+
+                        {sendForm.audience === "Specific" && (
+                          <div>
+                              <label className="block text-sm font-medium mb-1 opacity-80">Select User</label>
+                              <div className="relative">
+                                <input 
+                                  type="text"
+                                  placeholder="Search user by name or phone..."
+                                  value={userSearch}
+                                  onChange={(e) => setUserSearch(e.target.value)}
+                                  className="w-full p-2.5 rounded-t-lg border outline-none focus:ring-2 focus:ring-blue-500"
+                                  style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                                />
+                                <div className="max-h-32 overflow-y-auto border-x border-b rounded-b-lg" style={{ borderColor: themeColors.border }}>
+                                  {users
+                                    .filter(u => 
+                                      u.dispName?.toLowerCase().includes(userSearch.toLowerCase()) || 
+                                      u.phone?.includes(userSearch)
+                                    )
+                                    .slice(0, 10)
+                                    .map(u => (
+                                      <div 
+                                        key={u._id}
+                                        onClick={() => {
+                                          setSendForm({...sendForm, userId: u._id});
+                                          setUserSearch(`${u.dispName} (${u.phone}) - ${u.type}`);
+                                        }}
+                                        className={`p-2 cursor-pointer hover:bg-blue-50 text-sm border-b last:border-0 ${sendForm.userId === u._id ? 'bg-blue-100' : ''}`}
+                                        style={{ borderColor: themeColors.border }}
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <div className="font-bold">{u.dispName}</div>
+                                          <div className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-gray-100 rounded text-gray-500">{u.type}</div>
+                                        </div>
+                                        <div className="text-[10px] opacity-60">{u.phone}</div>
+                                      </div>
+                                    ))
+                                  }
+                                </div>
+                              </div>
+                          </div>
+                        )}
 
                        <div>
                            <label className="block text-sm font-medium mb-1 opacity-80">Type</label>
@@ -268,7 +342,10 @@ export default function Notifications() {
                        <div className="flex justify-end gap-3 mt-8">
                            <button 
                                 type="button" 
-                                onClick={()=>setIsSendModalOpen(false)} 
+                                onClick={()=>{
+                                   setIsSendModalOpen(false);
+                                   setUserSearch("");
+                                 }} 
                                 className="px-5 py-2.5 rounded-lg border hover:bg-gray-100 font-medium transition"
                                 style={{ borderColor: themeColors.border, color: themeColors.text }}
                            >
