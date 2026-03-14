@@ -6,7 +6,7 @@ export const getConversations = async () => {
 };
 
 export const getHistory = async (phoneNumber) => {
-    const response = await http.get(`/api/sms/history/${phoneNumber}`);
+    const response = await http.get(`/api/sms/history/${encodeURIComponent(phoneNumber)}`);
     return response.data;
 };
 

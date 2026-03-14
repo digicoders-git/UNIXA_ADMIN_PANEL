@@ -477,6 +477,9 @@ export default function CustomerDetailPage() {
                       const amcStatus = isExpired ? "Expired" : (productAmc?.status || "No AMC");
                       const isAmcActive = productAmc?.status === "Active" && !isExpired;
                       
+                      // Only show if AMC was actually taken (has valid plan name and status)
+                      const hasValidAmc = productAmc && productAmc.amcPlanName && productAmc.status !== 'Not Taken';
+                      
                       return (
                         <tr key={idx} className="hover:bg-black/5 transition-colors">
                           <td className="p-4 whitespace-nowrap">
@@ -500,16 +503,16 @@ export default function CustomerDetailPage() {
                                 "bg-gray-100 text-gray-700"
                               }`}
                             >
-                              {amcStatus}
+                              {hasValidAmc ? amcStatus : "No AMC"}
                             </span>
-                            {isAmcActive && (
+                            {hasValidAmc && isAmcActive && (
                               <div className="text-[10px] text-green-600 font-bold mt-1">
                                 Ends: {fmtDate(productAmc.endDate)}
                               </div>
                             )}
                           </td>
                           <td className="p-4">
-                            {productAmc ? (
+                            {hasValidAmc ? (
                               <div className="max-w-[150px]">
                                 <div className="font-bold text-blue-600 truncate">{productAmc.amcPlanName}</div>
                                 <div className="text-[10px] opacity-60">{fmtCurrency(productAmc.amcPlanPrice)}</div>
@@ -519,7 +522,7 @@ export default function CustomerDetailPage() {
                             )}
                           </td>
                           <td className="p-4">
-                            {productAmc ? (
+                            {hasValidAmc ? (
                               <div>
                                 <div className="font-bold">{productAmc.servicesUsed || 0} / {productAmc.servicesTotal || 4}</div>
                                 <div className="text-[10px] opacity-60">Visits Used</div>
@@ -542,7 +545,7 @@ export default function CustomerDetailPage() {
                               </button>
 
                               {/* Renew / Purchase */}
-                              {(!productAmc || isExpired) ? (
+                              {(!hasValidAmc || isExpired) ? (
                                 <button
                                   onClick={() => handleRenewOrPurchaseAmc(order, productAmc)}
                                   className="p-2 rounded-lg text-purple-600 hover:bg-purple-50 transition"

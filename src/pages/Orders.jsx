@@ -88,6 +88,12 @@ export default function Orders() {
 
     if (!newStatus || newStatus === order.status) return;
 
+    // Prevent status change if already delivered
+    if (order.status === "delivered") {
+      Swal.fire("Info", "Order is already delivered. Status cannot be changed.", "info");
+      return;
+    }
+
     const result = await Swal.fire({
       title: "Change order status?",
       text: `Order ${order._id} status will be changed from "${order.status}" to "${newStatus}".`,
@@ -659,11 +665,11 @@ export default function Orders() {
                       <td className="px-4 py-4">
                         <select
                           value={o.status || "pending"}
-                          disabled={!isLoggedIn || saving}
+                          disabled={!isLoggedIn || saving || o.status === "delivered"}
                           onChange={(e) => handleStatusChange(o, e.target.value)}
-                          className="px-2 py-1 rounded-lg border text-[10px] font-bold cursor-pointer hover:border-blue-400 transition-colors outline-none"
+                          className="px-2 py-1 rounded-lg border text-[10px] font-bold cursor-pointer hover:border-blue-400 transition-colors outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{
-                            backgroundColor: themeColors.surface,
+                            backgroundColor: o.status === "delivered" ? "#f3f4f6" : themeColors.surface,
                             borderColor: themeColors.border,
                             color: themeColors.text,
                           }}
