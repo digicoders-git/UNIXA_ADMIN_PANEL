@@ -407,8 +407,27 @@ export default function Customers() {
                       <td className="p-4">
                         {cust.purifiers && cust.purifiers.length > 0 ? (
                           <div className="text-xs">
-                            <div className="font-bold" style={{ color: themeColors.text }}>{cust.purifiers[0].brand} {cust.purifiers[0].model}</div>
+                            <div className="font-bold" style={{ color: themeColors.text }}>
+                              {cust.purifiers[0].brand} {cust.purifiers[0].model}
+                              {cust.purifiers.length > 1 && (
+                                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                                  {cust.purifiers.length} Units
+                                </span>
+                              )}
+                            </div>
                             <div className="text-[10px] opacity-50 uppercase tracking-tighter mt-0.5">{cust.purifiers[0].type} System</div>
+                          </div>
+                        ) : cust.orderItems && cust.orderItems.length > 0 ? (
+                          <div className="text-xs">
+                            <div className="font-bold" style={{ color: themeColors.text }}>
+                              {cust.orderItems[0].productName}
+                              {cust.orderItems.length > 1 && (
+                                <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                                  {cust.orderItems.length} Items
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] opacity-50 uppercase tracking-tighter mt-0.5">Purchased</div>
                           </div>
                         ) : (
                           <span className="text-[10px] opacity-40 italic">No Unit Registered</span>

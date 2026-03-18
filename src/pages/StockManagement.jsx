@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { getStockOverview, updateStock, getStockHistory } from "../apis/stock";
+import { getImageUrl } from "../apis/http";
 import {
     FaBoxOpen,
     FaSearch,
@@ -220,7 +221,7 @@ export default function StockManagement() {
                                         <tr key={product._id} className="transition hover:bg-black/5" style={{ color: themeColors.text }}>
                                             <td className="p-4 flex items-center gap-3">
                                                 <img
-                                                    src={product.mainImage?.url || "https://via.placeholder.com/40"}
+                                                    src={getImageUrl(product.mainImage?.url) || "https://via.placeholder.com/40"}
                                                     alt={product.name}
                                                     className="w-10 h-10 rounded object-cover border"
                                                 />
@@ -392,7 +393,7 @@ export default function StockManagement() {
                                         <div key={product._id} className="p-4 rounded-lg border flex items-center justify-between gap-4" style={{ borderColor: themeColors.border, backgroundColor: themeColors.background }}>
                                             <div className="flex items-center gap-3 flex-1">
                                                 <img
-                                                    src={product.mainImage?.url || "https://via.placeholder.com/50"}
+                                                    src={getImageUrl(product.mainImage?.url) || "https://via.placeholder.com/50"}
                                                     alt={product.name}
                                                     className="w-12 h-12 rounded object-cover border"
                                                 />

@@ -9,6 +9,7 @@ import {
   updateCategory,
   deleteCategory,
 } from "../apis/categories";
+import { getImageUrl } from "../apis/http";
 import {
   FaBox,
   FaPlus,
@@ -122,7 +123,7 @@ export default function Categories() {
       description: cat.description || "",
       isActive: typeof cat.isActive === "boolean" ? cat.isActive : true,
     });
-    setImagePreview(cat.image?.url || "");
+    setImagePreview(cat.image?.url ? getImageUrl(cat.image.url) : "");
     setSuccess("");
     setError("");
     setIsModalOpen(true);
@@ -526,7 +527,7 @@ export default function Categories() {
                         <div className="flex items-center gap-3">
                           {cat.image?.url ? (
                             <img 
-                              src={cat.image.url} 
+                              src={getImageUrl(cat.image.url)} 
                               alt={cat.name} 
                               className="w-10 h-10 object-cover rounded-lg bg-slate-50 border border-slate-100 flex-shrink-0"
                             />

@@ -112,24 +112,41 @@ export default function UserAMCManagement() {
     }
   };
 
-  const handleBookService = (amc) => {
-    const startDate = new Date(amc.startDate);
+  const checkServiceEligibility = (amc) => {
     const now = new Date();
-    const monthsElapsed = (now.getFullYear() - startDate.getFullYear()) * 12 + (now.getMonth() - startDate.getMonth());
-
-    if (monthsElapsed < 4) {
-      Swal.fire('Not Eligible', `This AMC is only ${monthsElapsed} months old. Service can be booked after 4 months.`, 'info');
-      // No return here, allowing admin to override if they want? 
-      // Actually the previous code returned, so let's keep it.
-      return;
+    let dueDate;
+    if (amc.nextServiceDueDate) {
+      dueDate = new Date(amc.nextServiceDueDate);
+    } else {
+      dueDate = new Date(amc.startDate);
+      dueDate.setMonth(dueDate.getMonth() + ((amc.servicesUsed + 1) * 4));
     }
+    if (dueDate > now) {
+      const daysLeft = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
+      Swal.fire('Not Eligible', `Next service is due on ${dueDate.toLocaleDateString('en-IN')}. Please wait ${daysLeft} more day(s).`, 'info');
+      return false;
+    }
+    return true;
+  };
 
-    setSelectedAmcForBooking(amc);
+  const openBookingModal = (amc) => {
+    const dueData = dueAmcs.find(d => d._id === amc._id);
+    setSelectedAmcForBooking(dueData || amc);
     setBookingForm({
-        employeeName: "",
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      employeeName: "",
+      dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     });
     setIsBookingModalOpen(true);
+  };
+
+  const handleBookService = (amc) => {
+    if (!checkServiceEligibility(amc)) return;
+    openBookingModal(amc);
+  };
+
+  const createServiceTicket = (amc) => {
+    if (!checkServiceEligibility(amc)) return;
+    openBookingModal(amc);
   };
 
   const handleBookingSubmit = async (e) => {
@@ -144,23 +161,25 @@ export default function UserAMCManagement() {
           const primaryAddress = selectedAmcForBooking.userId?.addresses?.find(addr => addr.isDefault || addr.isPrimary) || selectedAmcForBooking.userId?.addresses?.[0];
           const addressString = primaryAddress
             ? `${primaryAddress.addressLine1 || ''}, ${primaryAddress.city || ''}, ${primaryAddress.state || ''} ${primaryAddress.pincode || ''}`.trim()
-            : 'N/A';
+            : [selectedAmcForBooking.userId?.address, selectedAmcForBooking.userId?.city, selectedAmcForBooking.userId?.state, selectedAmcForBooking.userId?.pincode].filter(Boolean).join(', ') || 'N/A';
 
           await http.post('/api/assigned-tickets', {
-            title: `AMC Service - ${selectedAmcForBooking.userId?.firstName} ${selectedAmcForBooking.userId?.lastName}`,
+            title: `AMC Service #${selectedAmcForBooking.nextServiceNumber || (selectedAmcForBooking.servicesUsed || 0) + 1} - ${selectedAmcForBooking.userId?.firstName} ${selectedAmcForBooking.userId?.lastName}`,
             ticketType: 'service_request',
-            customerName: `${selectedAmcForBooking.userId?.firstName} ${selectedAmcForBooking.userId?.lastName}`,
-            customerPhone: selectedAmcForBooking.userId?.phone,
-            customerEmail: selectedAmcForBooking.userId?.email,
+            customerName: `${selectedAmcForBooking.userId?.firstName || ''} ${selectedAmcForBooking.userId?.lastName || ''}`.trim() || selectedAmcForBooking.customerPhone || 'Customer',
+            customerPhone: selectedAmcForBooking.userId?.phone || selectedAmcForBooking.customerPhone,
+            customerEmail: selectedAmcForBooking.userId?.email || 'N/A',
             address: addressString,
-            description: `AMC Service for ${selectedAmcForBooking.productName} (${selectedAmcForBooking.amcPlanName}).`,
-            priority: 'Medium',
+            description: `AMC Mandatory Service #${selectedAmcForBooking.nextServiceNumber || (selectedAmcForBooking.servicesUsed || 0) + 1} for ${selectedAmcForBooking.productName} (${selectedAmcForBooking.amcPlanName}). Customer: ${selectedAmcForBooking.userId?.firstName || ''} ${selectedAmcForBooking.userId?.lastName || ''}, Phone: ${selectedAmcForBooking.userId?.phone || selectedAmcForBooking.customerPhone}, Address: ${addressString}`,
+            priority: 'High',
             status: 'Pending',
             assignedBy: adminData.name || 'Admin',
             assignedTo: bookingForm.employeeName,
             amcId: selectedAmcForBooking._id,
             userId: selectedAmcForBooking.userId?._id,
-            dueDate: bookingForm.dueDate
+            dueDate: bookingForm.dueDate,
+            visitType: 'AMC_REMINDER',
+            assignedByRole: 'Admin'
           });
           Swal.fire('Success', 'Service ticket assigned successfully', 'success');
           setIsBookingModalOpen(false);
@@ -170,15 +189,6 @@ export default function UserAMCManagement() {
           console.error('Error assigning ticket:', error);
           Swal.fire('Error', 'Failed to assign ticket', 'error');
       }
-  };
-
-  const createServiceTicket = (amc) => {
-    setSelectedAmcForBooking(amc);
-    setBookingForm({
-        employeeName: "",
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-    });
-    setIsBookingModalOpen(true);
   };
 
   const handleNotifyUser = async (amc) => {
@@ -411,7 +421,8 @@ export default function UserAMCManagement() {
         amc.amcPlanName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.userId?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
         amc.userId?.lastName?.toLowerCase().includes(search.toLowerCase()) ||
-        amc.userId?.phone?.includes(search);
+        amc.userId?.phone?.includes(search) ||
+        amc.customerPhone?.includes(search);
         
       return matchesStatus && matchesSearch;
     });
@@ -421,10 +432,13 @@ export default function UserAMCManagement() {
   const groupedAmcs = (() => {
     const groups = {};
     filteredAmcs.forEach(amc => {
-      const phone = amc.userId?.phone || 'Unknown';
+      const phone = amc.userId?.phone || amc.customerPhone || 'Unknown';
       if (!groups[phone]) {
+        const firstName = amc.userId?.firstName || 'Offline Customer';
+        const lastName = amc.userId?.lastName || '';
+        const displayPhone = amc.userId?.phone || amc.customerPhone || '';
         groups[phone] = {
-          user: amc.userId || { firstName: 'Unknown', lastName: '', phone },
+          user: amc.userId || { firstName, lastName, phone: displayPhone },
           items: []
         };
       }

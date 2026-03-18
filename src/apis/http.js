@@ -1,10 +1,19 @@
 // src/apis/http.js
 import axios from "axios";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 30000
+  baseURL: BASE_URL,
+  timeout: 60000
 });
+
+// Helper: convert relative /uploads/... path to full backend URL
+export const getImageUrl = (path) => {
+  if (!path) return "";
+  if (path.startsWith("http")) return path;
+  return `${BASE_URL}${path}`;
+};
 
 // Attach token for every request
 http.interceptors.request.use((config) => {

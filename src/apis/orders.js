@@ -38,3 +38,9 @@ export const updateOrderDetails = async (orderId, details) => {
   const { data } = await http.patch(`/api/orders/${orderId}`, details);
   return data;
 };
+
+// POST /api/orders/backfill-amcs
+export const backfillAmcs = async () => {
+  const { data } = await http.post('/api/orders/backfill-amcs');
+  return data;
+};

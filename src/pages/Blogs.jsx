@@ -16,6 +16,7 @@ import {
   unlikeBlog,
   getBlogComments,
 } from "../apis/blogs";
+import { getImageUrl } from "../apis/http";
 import { useNavigate } from "react-router-dom";
 import {
   FaBlog,
@@ -670,7 +671,7 @@ export default function Blogs() {
                 {/* Image */}
                 <div className="relative">
                   <img
-                    src={blog.thumbnailImage || blog.coverImage || ""}
+                    src={getImageUrl(blog.thumbnailImage || blog.coverImage)}
                     alt={blog.title}
                     className="w-full h-40 object-cover"
                   />
@@ -1351,7 +1352,7 @@ export default function Blogs() {
             {/* Header with Cover Image */}
             <div className="relative h-64 md:h-80 w-full shrink-0">
               <img
-                src={viewBlog.coverImage || viewBlog.thumbnailImage || ""}
+                src={getImageUrl(viewBlog.coverImage || viewBlog.thumbnailImage)}
                 alt={viewBlog.title}
                 className="w-full h-full object-cover"
               />
@@ -1505,7 +1506,7 @@ export default function Blogs() {
                       <div className="p-4 rounded-3xl border border-slate-100 bg-white shadow-sm">
                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-3">Thumbnail Preview</p>
                         <img
-                          src={viewBlog.thumbnailImage}
+                          src={getImageUrl(viewBlog.thumbnailImage)}
                           alt="Thumbnail"
                           className="w-full h-32 object-cover rounded-2xl"
                         />

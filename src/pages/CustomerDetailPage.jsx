@@ -108,10 +108,11 @@ export default function CustomerDetailPage() {
     });
   };
 
-  // Get AMC for product
-  const getAmcForProduct = (productName) => {
+  // Get AMC for product - match by productId first, then productName
+  const getAmcForProduct = (order) => {
     return amcs.find(amc =>
-      amc.productName?.toLowerCase() === productName?.toLowerCase()
+      (order.product && amc.productId && String(amc.productId) === String(order.product)) ||
+      (amc.productName?.toLowerCase() === order.productName?.toLowerCase())
     );
   };
 
@@ -237,8 +238,8 @@ export default function CustomerDetailPage() {
           });
         } else {
           await createManualAmc({
-            userId: customer.userId || customer._id,
-            orderId: order.orderId || order._id,
+            userId: customer.userId || null,
+            orderId: order.orderId || order._id || null,
             productId: order.product,
             productType: order.productType || 'Product',
             productName: order.productName,
@@ -248,7 +249,8 @@ export default function CustomerDetailPage() {
             amcPlanPrice: planResult.price,
             durationMonths: planResult.duration,
             servicesTotal: planResult.services,
-            startDate: new Date().toISOString()
+            startDate: new Date().toISOString(),
+            customerPhone: customer.mobile || null
           });
         }
 
@@ -472,7 +474,7 @@ export default function CustomerDetailPage() {
                   </thead>
                   <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
                     {orders.map((order, idx) => {
-                      const productAmc = getAmcForProduct(order.productName);
+                      const productAmc = getAmcForProduct(order);
                       const isExpired = productAmc && (productAmc.status === 'Expired' || new Date(productAmc.endDate) < new Date());
                       const amcStatus = isExpired ? "Expired" : (productAmc?.status || "No AMC");
                       const isAmcActive = productAmc?.status === "Active" && !isExpired;

@@ -9,7 +9,7 @@ export const listSliders = async () => {
 
 // POST /sliders  (admin create, multipart/form-data)
 export const createSlider = async (formData) => {
-  const { data } = await http.post("/api  /sliders", formData, {
+  const { data } = await http.post("/api/sliders", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
@@ -17,7 +17,7 @@ export const createSlider = async (formData) => {
 
 // PUT /sliders/:sliderId  (admin update, multipart/form-data)
 export const updateSlider = async (sliderId, formData) => {
-  const { data } = await http.put(`/sliders/${sliderId}`, formData, {
+  const { data } = await http.put(`/api/sliders/${sliderId}`, formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return data;
@@ -25,6 +25,6 @@ export const updateSlider = async (sliderId, formData) => {
 
 // DELETE /sliders/:sliderId  (admin delete)
 export const deleteSlider = async (sliderId) => {
-  const { data } = await http.delete(`/sliders/${sliderId}`);
+  const { data } = await http.delete(`/api/sliders/${sliderId}`);
   return data;
 };

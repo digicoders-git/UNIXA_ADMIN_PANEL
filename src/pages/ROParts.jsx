@@ -8,6 +8,7 @@ import {
   updateRoPart,
   deleteRoPart,
 } from "../apis/roParts";
+import { getImageUrl } from "../apis/http";
 import { getCategories } from "../apis/categories";
 import { listAmcPlans } from "../apis/amcPlans";
 import { FaCheck } from "react-icons/fa";
@@ -138,7 +139,7 @@ export default function ROParts() {
       isActive: part.isActive ?? true,
       amcPlans: Array.isArray(part.amcPlans) ? part.amcPlans.map(a => a._id || a) : [],
     });
-    setImagePreview(part.mainImage?.url || "");
+    setImagePreview(part.mainImage?.url ? getImageUrl(part.mainImage.url) : "");
     setImageFile(null);
     setError("");
     setIsModalOpen(true);
@@ -285,7 +286,7 @@ export default function ROParts() {
               filteredParts.map((part) => (
                 <tr key={part._id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-4 py-3">
-                    <img src={part.mainImage?.url} alt={part.name} className="w-12 h-12 object-cover rounded-lg border shadow-sm" style={{ borderColor: themeColors.border }} />
+                    <img src={getImageUrl(part.mainImage?.url)} alt={part.name} className="w-12 h-12 object-cover rounded-lg border shadow-sm" style={{ borderColor: themeColors.border }} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-bold text-slate-800">{part.name}</div>
@@ -348,69 +349,90 @@ export default function ROParts() {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200">
+            {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-lg font-bold flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 font-bold"><FaPlus size={14} /></div>
-                {editing ? "Edit Part" : "Add New Part"}
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"><FaPlus size={14} /></div>
+                {editing ? "Edit RO Part" : "Add New RO Part"}
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><FaTimes /></button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part P ID *</label>
-                  <input
-                    type="text" required value={form.p_id} name="p_id" onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
-                    placeholder="e.g. 93101"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Name *</label>
-                  <input
-                    type="text" required value={form.name} name="name" onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
-                  />
-                </div>
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Category *</label>
-                  <div className="relative">
+            <form onSubmit={handleSubmit}>
+              {/* Landscape: Left fields | Right AMC Plans */}
+              <div className="flex divide-x" style={{ minHeight: 420 }}>
+
+                {/* LEFT — Form Fields */}
+                <div className="flex-1 p-6 space-y-4 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part P ID *</label>
+                      <input
+                        type="text" required value={form.p_id} name="p_id" onChange={handleChange}
+                        className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
+                        placeholder="e.g. 93101"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                      <div className="flex items-center h-[38px]">
+                        <button type="button" onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))} className={`text-2xl transition-colors ${form.isActive ? 'text-blue-600' : 'text-slate-300'}`}>
+                          {form.isActive ? <FaToggleOn /> : <FaToggleOff />}
+                        </button>
+                        <span className="ml-2 text-xs font-semibold">{form.isActive ? 'Active' : 'Inactive'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Name *</label>
                     <input
-                      type="text"
-                      className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm cursor-pointer bg-white"
-                      readOnly
-                      placeholder="Select Category"
+                      type="text" required value={form.name} name="name" onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Base Price (₹) *</label>
+                      <input
+                        type="number" required value={form.price} name="price" onChange={handleChange}
+                        className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Discount (%)</label>
+                      <input
+                        type="number" min="0" max="100" value={form.discountPercent} name="discountPercent" onChange={handleChange}
+                        className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Category *</label>
+                    <input
+                      type="text" readOnly placeholder="Select Category"
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm cursor-pointer bg-white"
                       onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                      value={form.categoryId ? categories.find(c => c._id === form.categoryId)?.name || "Select Category" : ""}
+                      value={form.categoryId ? categories.find(c => c._id === form.categoryId)?.name || "" : ""}
                     />
                     {showCategoryDropdown && (
-                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 animate-in fade-in slide-in-from-top-2 duration-200 bg-white" style={{ borderColor: themeColors.border }}>
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 bg-white" style={{ borderColor: themeColors.border }}>
                         <div className="relative mb-2">
                           <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
-                          <input
-                            type="text"
-                            placeholder="Search category..."
-                            autoFocus
-                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none focus:ring-2"
+                          <input type="text" placeholder="Search..." autoFocus
+                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none"
                             style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
-                            value={categorySearch}
-                            onChange={e => setCategorySearch(e.target.value)}
+                            value={categorySearch} onChange={e => setCategorySearch(e.target.value)}
                           />
                         </div>
-                        <div className="max-h-48 overflow-y-auto space-y-1">
+                        <div className="max-h-40 overflow-y-auto space-y-1">
                           {categories.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase())).map(c => (
-                            <div 
-                              key={c._id}
-                              className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors flex justify-between items-center"
-                              onClick={() => {
-                                setForm({...form, categoryId: c._id});
-                                setShowCategoryDropdown(false);
-                                setCategorySearch("");
-                              }}
-                            >
+                            <div key={c._id} className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm"
+                              onClick={() => { setForm({...form, categoryId: c._id}); setShowCategoryDropdown(false); setCategorySearch(""); }}>
                               <span className="font-medium text-slate-800">{c.name}</span>
                             </div>
                           ))}
@@ -420,104 +442,62 @@ export default function ROParts() {
                         </div>
                       </div>
                     )}
-                    {showCategoryDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowCategoryDropdown(false)}></div>}
+                    {showCategoryDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowCategoryDropdown(false)} />}
                   </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
-                  <div className="flex items-center h-[38px]">
-                    <button
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))}
-                      className={`text-xl transition-colors ${form.isActive ? 'text-blue-600' : 'text-slate-300'}`}
-                    >
-                      {form.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                    </button>
-                    <span className="ml-2 text-xs font-semibold">{form.isActive ? 'Active' : 'Inactive'}</span>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Base Price (₹) *</label>
-                  <input
-                    type="number" required value={form.price} name="price" onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Discount (%)</label>
-                  <input
-                    type="number" min="0" max="100" value={form.discountPercent} name="discountPercent" onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-sm"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Image *</label>
-                  <div className="flex items-center gap-4">
-                    <div className="relative group">
-                      <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 group-hover:border-blue-400 transition-colors">
-                        {imagePreview ? (
-                          <img src={imagePreview} className="w-full h-full object-cover" />
-                        ) : (
-                          <FaPlus className="text-slate-300" />
-                        )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Image *</label>
+                    <div className="flex items-center gap-4">
+                      <div className="relative group w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 group-hover:border-blue-400 transition-colors shrink-0">
+                        {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover" /> : <FaPlus className="text-slate-300" />}
                         <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                       </div>
-                    </div>
-                    <div className="text-[10px] text-slate-400">
-                      JPG, PNG or WEBP allowed.
+                      <span className="text-[10px] text-slate-400">JPG, PNG or WEBP allowed.</span>
                     </div>
                   </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Short Description</label>
+                    <textarea rows="3" value={form.description} name="description" onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none resize-none text-sm"
+                      placeholder="Brief details..."
+                    />
+                  </div>
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Short Description</label>
-                  <textarea
-                    rows="2" value={form.description} name="description" onChange={handleChange}
-                    className="w-full px-4 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none transition-all resize-none text-sm"
-                    placeholder="Brief details..."
-                  />
-                </div>
-                {/* AMC Plans Selection */}
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Applicable AMC Plans</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+                {/* RIGHT — AMC Plans */}
+                <div className="w-72 p-6 flex flex-col">
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Applicable AMC Plans</label>
+                  <div className="flex-1 overflow-y-auto space-y-2">
                     {allAmcPlans.map((plan) => (
-                      <div
-                        key={plan._id}
-                        onClick={() => toggleAmcPlan(plan._id)}
-                        className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
-                          form.amcPlans.includes(plan._id)
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-gray-200"
+                      <div key={plan._id} onClick={() => toggleAmcPlan(plan._id)}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
+                          form.amcPlans.includes(plan._id) ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-semibold">{plan.name}</span>
-                          <span className="text-[10px] opacity-60">₹{plan.price} / {plan.durationMonths}m</span>
+                        <div>
+                          <div className="text-[11px] font-semibold">{plan.name}</div>
+                          <div className="text-[10px] opacity-60">₹{plan.price} / {plan.durationMonths}m</div>
                         </div>
-                        {form.amcPlans.includes(plan._id) ? (
-                          <FaCheck className="text-blue-500 text-[10px]" />
-                        ) : (
-                          <div className="w-3 h-3 rounded-full border border-gray-300" />
-                        )}
+                        {form.amcPlans.includes(plan._id)
+                          ? <FaCheck className="text-blue-500 text-[10px] shrink-0" />
+                          : <div className="w-3 h-3 rounded-full border border-gray-300 shrink-0" />}
                       </div>
                     ))}
+                    {allAmcPlans.length === 0 && <p className="text-[10px] opacity-50 italic">No AMC plans found.</p>}
                   </div>
-                  {allAmcPlans.length === 0 && (
-                     <p className="text-[10px] opacity-50 italic">No AMC plans found.</p>
-                  )}
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button" onClick={() => setIsModalOpen(false)}
-                  className="flex-1 px-6 py-2.5 rounded-xl border font-bold text-slate-600 hover:bg-slate-50 transition-all uppercase tracking-widest text-[10px]"
+              {/* Footer Buttons */}
+              <div className="flex gap-3 px-6 py-4 border-t">
+                <button type="button" onClick={() => setIsModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border font-bold text-slate-600 hover:bg-slate-50 transition-all uppercase tracking-widest text-[10px]"
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit" disabled={saving}
-                  className="flex-1 px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[10px]"
+                <button type="submit" disabled={saving}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest text-[10px]"
                 >
                   {saving ? "Saving..." : editing ? "Update" : "Create"}
                 </button>

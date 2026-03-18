@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { listOrders, updateOrderStatus, createOfflineOrder, deleteOrder, updateOrderDetails } from "../apis/orders";
+import { listOrders, updateOrderStatus, createOfflineOrder, deleteOrder, updateOrderDetails, backfillAmcs } from "../apis/orders";
 import { listProducts } from "../apis/products";
 import { listAmcPlans } from "../apis/amcPlans";
 import { getCustomersFromOrders } from "../apis/customers";
@@ -18,6 +18,7 @@ import {
   FaEdit,
   FaChartBar,
   FaChartPie,
+  FaShieldAlt,
 } from "react-icons/fa";
 import { 
     ShieldCheck, 
@@ -517,14 +518,8 @@ export default function OfflineOrders() {
     
         try {
           await updateOrderStatus(order._id || order.id, newStatus);
-          setOrders((prev) =>
-            prev.map((o) =>
-              (o._id || o.id) === (order._id || order.id)
-                ? { ...o, status: newStatus }
-                : o
-            )
-          );
-          Swal.fire("Updated", "Status updated", "success");
+          fetchOrders(); // Refresh to get latest state
+          Swal.fire("Updated", `Status updated to "${newStatus}"${newStatus === 'delivered' && order.items?.some(i => i.amcPlan) ? ' — AMC activated!' : ''}`, "success");
         } catch (e) {
           Swal.fire("Error", "Failed to update status", "error");
         }
@@ -571,6 +566,28 @@ export default function OfflineOrders() {
             className="px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 flex items-center gap-2"
           >
             <FaPlus /> Create Order
+          </button>
+          <button
+            onClick={async () => {
+              const result = await Swal.fire({
+                title: 'Fix Missing AMCs?',
+                text: 'Sabhi delivered orders ke liye missing AMC records create karega.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Fix Karo',
+                confirmButtonColor: '#7c3aed'
+              });
+              if (!result.isConfirmed) return;
+              try {
+                const res = await backfillAmcs();
+                Swal.fire('Done!', `${res.created} AMC(s) create hue, ${res.skipped} already the.`, 'success');
+              } catch (e) {
+                Swal.fire('Error', 'Backfill failed', 'error');
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-purple-600 text-white font-medium hover:bg-purple-700 flex items-center gap-2 text-sm"
+          >
+            <FaShieldAlt /> Fix AMCs
           </button>
            <select
               value={statusFilter}
@@ -951,9 +968,25 @@ export default function OfflineOrders() {
                             </td>
                             <td className="px-4 py-3 font-bold">{fmtCurrency(Order.total)}</td>
                             <td className="px-4 py-3">
-                                <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${Order.status === 'confirmed' || Order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-slate-100'}`}>
-                                    {Order.status}
-                                </span>
+                                <select
+                                    value={Order.status}
+                                    onChange={(e) => handleStatusChange(Order, e.target.value)}
+                                    className={`px-2 py-1 rounded text-xs font-bold uppercase border-0 cursor-pointer ${
+                                        Order.status === 'delivered' ? 'bg-green-100 text-green-700' :
+                                        Order.status === 'confirmed' ? 'bg-blue-100 text-blue-700' :
+                                        Order.status === 'shipped' ? 'bg-cyan-100 text-cyan-700' :
+                                        Order.status === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                        'bg-slate-100 text-slate-700'
+                                    }`}
+                                    style={{ backgroundColor: undefined }}
+                                >
+                                    {STATUS_OPTIONS.map(s => (
+                                        <option key={s} value={s}>{s.toUpperCase()}</option>
+                                    ))}
+                                </select>
+                                {Order.items?.some(i => i.amcPlan) && (
+                                    <div className="text-[10px] text-blue-500 font-bold mt-0.5">AMC order</div>
+                                )}
                             </td>
                             <td className="px-4 py-3 text-xs">{fmtDateTime(Order.createdAt)}</td>
                             <td className="px-4 py-3 flex gap-2">

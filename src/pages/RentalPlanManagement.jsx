@@ -3,6 +3,7 @@ import { getRentalPlans, createRentalPlan, updateRentalPlan, deleteRentalPlan } 
 import { listAmcPlans } from "../apis/amcPlans";
 import { listProducts } from "../apis/products";
 import { FaEdit, FaTrash, FaPlus, FaImage, FaCheck, FaTimes } from "react-icons/fa";
+import { getImageUrl } from "../apis/http";
 import Swal from "sweetalert2";
 
 export default function RentalPlanManagement() {
@@ -104,7 +105,7 @@ export default function RentalPlanManagement() {
       productId: plan.productId?._id || plan.productId || "",
       description: plan.description || "",
     });
-    setImagePreview(plan.image?.url || null);
+    setImagePreview(plan.image?.url ? getImageUrl(plan.image.url) : null);
     setIsModalOpen(true);
   };
 
@@ -214,6 +215,20 @@ export default function RentalPlanManagement() {
 
       {loading ? (
         <div className="text-center py-10">Loading plans...</div>
+      ) : plans.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mb-4 text-slate-300">
+            <FaImage size={28} />
+          </div>
+          <h3 className="text-lg font-bold text-gray-700 mb-1">No Rental Plans Yet</h3>
+          <p className="text-sm text-gray-400 mb-4">Click "Add New Plan" to create your first rental plan.</p>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+          >
+            <FaPlus /> Add New Plan
+          </button>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plans.map((plan) => (
@@ -232,7 +247,7 @@ export default function RentalPlanManagement() {
 
               <div className="h-48 overflow-hidden bg-gray-100">
                 <img
-                  src={plan.image?.url}
+                  src={getImageUrl(plan.image?.url)}
                   alt={plan.planName}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
@@ -335,7 +350,8 @@ export default function RentalPlanManagement() {
                         value={formData.price}
                         onChange={handleInputChange}
                         required
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        disabled={formData.installationCost === "Free"}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-400"
                         placeholder="499"
                         />
                     </div>
@@ -357,14 +373,31 @@ export default function RentalPlanManagement() {
                  <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Installation Cost</label>
-                        <input
-                        type="text"
-                        name="installationCost"
-                        value={formData.installationCost}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                        placeholder="e.g. Free or ₹500"
-                        />
+                        <select
+                          name="installationCost"
+                          value={formData.installationCost === "Free" ? "Free" : "Paid"}
+                          onChange={(e) => {
+                            if (e.target.value === "Free") {
+                              setFormData(prev => ({ ...prev, installationCost: "Free", price: "0" }));
+                            } else {
+                              setFormData(prev => ({ ...prev, installationCost: "", price: "" }));
+                            }
+                          }}
+                          className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        >
+                          <option value="Free">Free</option>
+                          <option value="Paid">Paid</option>
+                        </select>
+                        {formData.installationCost !== "Free" && (
+                          <input
+                            type="text"
+                            name="installationCost"
+                            value={formData.installationCost}
+                            onChange={handleInputChange}
+                            className="w-full mt-2 px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="e.g. ₹500"
+                          />
+                        )}
                     </div>
 
                     <div>

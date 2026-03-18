@@ -9,6 +9,7 @@ import {
   updateSlider,
   deleteSlider,
 } from "../apis/sliders";
+import { getImageUrl } from "../apis/http";
 import {
   FaImages,
   FaPlus,
@@ -133,7 +134,7 @@ export default function Sliders() {
         typeof slider.isActive === "boolean" ? slider.isActive : true,
     });
     setImageFile(null);
-    setImagePreview(slider.image?.url || "");
+    setImagePreview(slider.image?.url ? getImageUrl(slider.image.url) : "");
     setError("");
     setSuccess("");
     setIsModalOpen(true);
@@ -563,14 +564,14 @@ export default function Sliders() {
                     <td className="px-4 py-2">
                       {s.video?.url ? (
                         <video
-                          src={s.video.url}
+                          src={getImageUrl(s.video.url)}
                           className="h-16 w-32 object-cover rounded-lg border"
                           style={{ borderColor: themeColors.border }}
                           muted
                         />
                       ) : s.image?.url ? (
                         <img
-                          src={s.image.url}
+                          src={getImageUrl(s.image.url)}
                           alt={s.title}
                           className="h-16 w-32 object-cover rounded-lg border"
                           style={{ borderColor: themeColors.border }}

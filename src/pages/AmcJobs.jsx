@@ -128,54 +128,67 @@ export default function AmcJobs() {
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="text-lg font-black text-slate-900">{job.productName}</h3>
-          <p className="text-xs font-bold text-slate-400 uppercase">{job.serviceType}</p>
+          <div className="flex gap-2 items-center">
+            <p className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+              {job.amcPlanName || 'Standard AMC'}
+            </p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{job.serviceType}</p>
+          </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+        <span className={`px-3 py-1 rounded-full text-[10px] font-black ${
           job.daysUntilService <= 0 ? "bg-red-100 text-red-700" :
           job.daysUntilService <= 3 ? "bg-orange-100 text-orange-700" :
           "bg-green-100 text-green-700"
         }`}>
-          {job.daysUntilService <= 0 ? "OVERDUE" : `${job.daysUntilService} days`}
+          {job.daysUntilService <= 0 ? "OVERDUE" : `${job.daysUntilService} days left`}
         </span>
       </div>
 
-      <div className="space-y-3 mb-4">
+      <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2 text-sm">
-          <FaUser size={14} className="text-blue-500" />
-          <span className="font-bold">{job.customer?.name}</span>
+          <FaUser size={12} className="text-blue-500" />
+          <span className="font-bold">{job.customer?.name || "Unregistered Buyer"}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <FaPhone size={14} className="text-green-500" />
-          <span>{job.customer?.phone}</span>
+        <div className="flex items-center gap-2 text-xs">
+          <FaPhone size={12} className="text-green-500" />
+          <span className="font-medium">{job.customer?.phone}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <FaMapMarkerAlt size={14} className="text-red-500" />
-          <span className="text-xs">{job.customer?.address?.addressLine1 || "N/A"}</span>
+        <div className="flex gap-2">
+          <FaMapMarkerAlt size={12} className="text-red-500 mt-1 shrink-0" />
+          <span className="text-[11px] opacity-70 italic line-clamp-2">
+            {job.customer?.address?.addressLine1 || job.customer?.address?.area || "No Address Saved"}
+            {job.customer?.address?.city ? `, ${job.customer.address.city}` : ""}
+          </span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <FaCalendarAlt size={14} className="text-purple-500" />
+        <div className="flex items-center gap-2 text-xs font-bold pt-1">
+          <FaCalendarAlt size={12} className="text-purple-500" />
           <span>Due: {formatDate(job.nextServiceDueDate)}</span>
         </div>
       </div>
 
       <div className="bg-slate-50 rounded-lg p-3 mb-4">
-        <p className="text-xs font-bold text-slate-400 uppercase mb-1">Service Progress</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Visits Progress</p>
         <div className="flex items-center justify-between">
-          <div className="flex-1 bg-slate-200 rounded-full h-2 mr-2">
+          <div className="flex-1 bg-slate-200 rounded-full h-1.5 mr-2">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className={`h-1.5 rounded-full transition-all ${
+                job.servicesUsed >= job.servicesTotal ? 'bg-red-500' : 'bg-blue-600'
+              }`}
               style={{ width: `${(job.servicesUsed / job.servicesTotal) * 100}%` }}
             ></div>
           </div>
-          <span className="text-xs font-bold">{job.servicesUsed}/{job.servicesTotal}</span>
+          <span className="text-xs font-black">{job.servicesUsed}/{job.servicesTotal}</span>
         </div>
       </div>
 
       <button
-        onClick={() => Swal.fire("Info", `Service scheduled for ${formatDate(job.nextServiceDueDate)}`, "info")}
-        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition"
+        onClick={() => {
+          setEditingId(job._id);
+          setEditDate(new Date(job.nextServiceDueDate).toISOString().split('T')[0]);
+        }}
+        className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-2"
       >
-        View Details
+        <FaEdit size={10} /> Reschedule Service
       </button>
     </div>
   );
@@ -184,59 +197,58 @@ export default function AmcJobs() {
     <div className="rounded-xl border overflow-hidden shadow-sm" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 text-xs uppercase opacity-70 border-b" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
+          <thead className="bg-gray-50 text-[10px] uppercase opacity-70 border-b" style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}>
             <tr>
-              <th className="p-4">Product</th>
-              <th className="p-4">Customer</th>
-              <th className="p-4">Phone</th>
+              <th className="p-4">Product & Plan</th>
+              <th className="p-4">Customer Details</th>
               <th className="p-4">Service Type</th>
               <th className="p-4">Due Date</th>
-              <th className="p-4">Days Left</th>
+              <th className="p-4">AMC Status</th>
               <th className="p-4">Progress</th>
-              <th className="p-4">Status</th>
+              <th className="p-4">Urgency</th>
               <th className="p-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan="9" className="p-8 text-center opacity-50">No jobs found</td>
+                <td colSpan="8" className="p-8 text-center opacity-50 font-bold">No upcoming jobs found</td>
               </tr>
             ) : (
               jobs.map(job => {
                 const urgency = getUrgencyBadge(job.daysUntilService);
                 return (
                   <tr key={job._id} className="hover:bg-black/5 transition">
-                    <td className="p-4 font-bold">{job.productName}</td>
                     <td className="p-4">
-                      <div className="font-bold">{job.customer?.name}</div>
-                      <div className="text-xs opacity-60">{job.customer?.email}</div>
+                      <div className="font-bold text-sm">{job.productName}</div>
+                      <div className="text-[10px] font-black text-blue-600 uppercase">{job.amcPlanName || "Standard AMC"}</div>
                     </td>
-                    <td className="p-4 text-xs">{job.customer?.phone}</td>
-                    <td className="p-4 text-xs font-medium">{job.serviceType}</td>
-                    <td className="p-4 font-bold">{formatDate(job.nextServiceDueDate)}</td>
                     <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        job.daysUntilService <= 0 ? "bg-red-100 text-red-700" :
-                        job.daysUntilService <= 3 ? "bg-orange-100 text-orange-700" :
-                        "bg-green-100 text-green-700"
-                      }`}>
-                        {job.daysUntilService <= 0 ? "OVERDUE" : `${job.daysUntilService}d`}
+                      <div className="font-black text-xs text-slate-800">{job.customer?.name || "Offline Buyer"}</div>
+                      <div className="text-[10px] opacity-60 flex items-center gap-1">
+                        <FaPhone size={8} /> {job.customer?.phone}
+                      </div>
+                    </td>
+                    <td className="p-4 text-[11px] font-bold uppercase tracking-tighter text-slate-500">{job.serviceType}</td>
+                    <td className="p-4 font-black text-slate-700">{formatDate(job.nextServiceDueDate)}</td>
+                    <td className="p-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${getStatusColor(job.status)}`}>
+                        {job.status}
                       </span>
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-slate-200 rounded-full h-2 w-16">
+                        <div className="flex-1 bg-slate-200 rounded-full h-1.5 w-16">
                           <div
-                            className="bg-blue-600 h-2 rounded-full"
+                            className={`h-1.5 rounded-full ${job.servicesUsed >= job.servicesTotal ? 'bg-red-500' : 'bg-blue-600'}`}
                             style={{ width: `${(job.servicesUsed / job.servicesTotal) * 100}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs font-bold">{job.servicesUsed}/{job.servicesTotal}</span>
+                        <span className="text-[10px] font-black">{job.servicesUsed}/{job.servicesTotal}</span>
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${urgency.color}`}>
+                      <span className={`px-2 py-1 rounded text-[10px] font-black ${urgency.color}`}>
                         {urgency.text}
                       </span>
                     </td>
@@ -246,9 +258,9 @@ export default function AmcJobs() {
                           setEditingId(job._id);
                           setEditDate(new Date(job.nextServiceDueDate).toISOString().split('T')[0]);
                         }}
-                        className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition"
+                        className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition flex items-center gap-1 ml-auto"
                       >
-                        <FaEdit size={12} className="inline mr-1" /> Edit
+                        <FaEdit size={10} /> Date
                       </button>
                     </td>
                   </tr>

@@ -11,6 +11,7 @@ import {
   deleteProduct,
 } from "../apis/products";
 import { listOffers } from "../apis/offers";
+import { getImageUrl } from "../apis/http";
 import { listAmcPlans } from "../apis/amcPlans";
 import {
   FaBoxOpen,
@@ -1066,7 +1067,7 @@ export default function Products() {
                         categoryMap[p.categoryId] ||
                         "-";
                       const finalPrice = getFinalPrice(p);
-                      const mainImg = p.mainImage?.url || (p.galleryImages?.[0]?.url) || "";
+                      const mainImg = getImageUrl(p.mainImage?.url || p.galleryImages?.[0]?.url || "");
 
                       return (
                         <tr 
@@ -1224,11 +1225,7 @@ export default function Products() {
                       {/* Image */}
                       <div className="relative">
                         <img
-                          src={
-                            p.mainImage?.url ||
-                            p.galleryImages?.[0]?.url ||
-                            ""
-                          }
+                        src={getImageUrl(p.mainImage?.url || p.galleryImages?.[0]?.url || "")}
                           alt={p.name}
                           className="w-full h-40 object-cover"
                         />
@@ -1385,7 +1382,7 @@ export default function Products() {
                                 {p.galleryImages.map((g, i) => (
                                   <img
                                     key={i}
-                                    src={g.url}
+                                    src={getImageUrl(g.url)}
                                     alt={`${p.name} ${i + 1}`}
                                     className="w-10 h-10 object-cover rounded-md flex-shrink-0"
                                   />
@@ -2608,7 +2605,7 @@ export default function Products() {
                     <div className="absolute inset-0 bg-blue-600/5 rounded-[2rem] blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="relative rounded-[2rem] overflow-hidden border-2 border-slate-50 shadow-xl bg-white aspect-square">
                       <img
-                        src={viewProduct.mainImage?.url || viewProduct.galleryImages?.[0]?.url || ""}
+                        src={getImageUrl(viewProduct.mainImage?.url || viewProduct.galleryImages?.[0]?.url || "")}
                         alt={viewProduct.name}
                         className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-700"
                       />
@@ -2622,7 +2619,7 @@ export default function Products() {
                         {viewProduct.galleryImages.map((g, i) => (
                           <div key={i} className="aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-zoom-in group">
                             <img
-                              src={g.url}
+                              src={getImageUrl(g.url)}
                               alt={`${viewProduct.name} ${i + 1}`}
                               className="w-full h-full object-cover group-hover:scale-110 transition-transform"
                             />
