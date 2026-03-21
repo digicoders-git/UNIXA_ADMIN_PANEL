@@ -9,6 +9,8 @@ import {
 } from "../apis/userAmc";
 import http from "../apis/http";
 import { listAmcPlans } from "../apis/amcPlans";
+import { listProducts } from "../apis/products";
+import { createOfflineOrder } from "../apis/orders";
 import {
   FaArrowLeft,
   FaUsers,
@@ -22,6 +24,8 @@ import {
   FaTimes,
   FaCheckCircle,
   FaTimesCircle,
+  FaPlus,
+  FaTrash,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 
@@ -43,6 +47,20 @@ export default function CustomerDetailPage() {
   const [employees, setEmployees] = useState([]);
   const [technicianSearch, setTechnicianSearch] = useState("");
   const [showTechDropdown, setShowTechDropdown] = useState(false);
+
+  // Add Order Modal
+  const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+  const [orderProducts, setOrderProducts] = useState([]);
+  const [orderAmcPlans, setOrderAmcPlans] = useState([]);
+  const [orderItems, setOrderItems] = useState([]);
+  const [newOrderItem, setNewOrderItem] = useState({ productId: "", amcId: "", quantity: 1 });
+  const [orderPaymentMethod, setOrderPaymentMethod] = useState("Cash");
+  const [orderPaymentStatus, setOrderPaymentStatus] = useState("paid");
+  const [orderStatus, setOrderStatus] = useState("confirmed");
+  const [orderProductSearch, setOrderProductSearch] = useState("");
+  const [showOrderProductDropdown, setShowOrderProductDropdown] = useState(false);
+  const [orderAmcSearch, setOrderAmcSearch] = useState("");
+  const [showOrderAmcDropdown, setShowOrderAmcDropdown] = useState(false);
 
   // Fetch customer history
   const fetchCustomerHistory = useCallback(async () => {
@@ -72,7 +90,86 @@ export default function CustomerDetailPage() {
       }
     };
     fetchEmployees();
+    // Fetch products & amc plans for order modal
+    listProducts().then(setOrderProducts).catch(console.error);
+    listAmcPlans(true).then(setOrderAmcPlans).catch(console.error);
   }, [fetchCustomerHistory]);
+
+  const fmtCurrencySimple = (n) => `₹${(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+
+  const handleAddOrderItem = () => {
+    if (!newOrderItem.productId) return;
+    const product = orderProducts.find(p => (p._id || p.id) === newOrderItem.productId);
+    if (!product) return;
+    const amc = newOrderItem.amcId ? orderAmcPlans.find(a => a._id === newOrderItem.amcId) : null;
+    const amcPrice = amc ? amc.price : 0;
+    const itemPrice = (product.price || product.sellingPrice || 0) + amcPrice;
+    const existing = orderItems.findIndex(it => it.productId === newOrderItem.productId && it.amcId === newOrderItem.amcId);
+    if (existing > -1) {
+      const updated = [...orderItems];
+      updated[existing].quantity += parseInt(newOrderItem.quantity);
+      setOrderItems(updated);
+    } else {
+      setOrderItems([...orderItems, {
+        productId: newOrderItem.productId,
+        name: product.name,
+        price: itemPrice,
+        productPrice: product.price || product.sellingPrice || 0,
+        quantity: parseInt(newOrderItem.quantity),
+        amcId: amc ? (amc.amcId || `AMC-${Date.now()}`) : undefined,
+        amcPlan: amc ? amc._id : undefined,
+        amcPlanName: amc ? amc.name : undefined,
+        amcPrice,
+      }]);
+    }
+    setNewOrderItem({ productId: "", amcId: "", quantity: 1 });
+  };
+
+  const handleSubmitAddOrder = async (e) => {
+    e.preventDefault();
+    if (orderItems.length === 0) {
+      Swal.fire("Error", "Kam se kam ek item add karo", "error");
+      return;
+    }
+    try {
+      const addr = customer.address || {};
+      const totalAmount = orderItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
+      await createOfflineOrder({
+        shippingAddress: {
+          name: customer.name,
+          phone: customer.mobile,
+          addressLine1: `${addr.house || ""} ${addr.area || ""}`.trim() || "N/A",
+          city: addr.city || "N/A",
+          state: addr.state || "N/A",
+          pincode: addr.pincode || "000000",
+        },
+        items: orderItems.map(it => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          productPrice: it.productPrice,
+          amcPrice: it.amcPrice || 0,
+          price: it.price,
+          productName: it.name,
+          amcId: it.amcId || null,
+          amcPlan: it.amcPlan || null,
+          amcPlanName: it.amcPlanName || null,
+        })),
+        total: totalAmount,
+        paymentMethod: orderPaymentMethod,
+        paymentStatus: orderPaymentStatus,
+        status: orderStatus,
+        source: "offline",
+      });
+      Swal.fire("Success", "Order create ho gaya!", "success");
+      setShowAddOrderModal(false);
+      setOrderItems([]);
+      setNewOrderItem({ productId: "", amcId: "", quantity: 1 });
+      fetchCustomerHistory();
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Error", "Order create karne mein error aaya", "error");
+    }
+  };
 
   // Get status badge color
   const getStatusColor = (status) => {
@@ -368,13 +465,21 @@ export default function CustomerDetailPage() {
               <p className="text-xs opacity-60 mt-1">Complete Product & AMC History</p>
             </div>
           </div>
-          <button
-            onClick={fetchCustomerHistory}
-            className="px-3 py-2 rounded-lg border text-sm flex items-center gap-2 hover:bg-opacity-80 transition"
-            style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
-          >
-            <FaSync /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowAddOrderModal(true)}
+              className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-bold flex items-center gap-2 hover:bg-green-700 transition shadow"
+            >
+              <FaPlus /> Add Order
+            </button>
+            <button
+              onClick={fetchCustomerHistory}
+              className="px-3 py-2 rounded-lg border text-sm flex items-center gap-2 hover:bg-opacity-80 transition"
+              style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}
+            >
+              <FaSync /> Refresh
+            </button>
+          </div>
         </div>
       </div>
 
@@ -611,6 +716,166 @@ export default function CustomerDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Add Order Modal */}
+      {showAddOrderModal && customer && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto" style={{ backgroundColor: themeColors.surface }}>
+            <div className="p-5 border-b flex justify-between items-center" style={{ borderColor: themeColors.border }}>
+              <h3 className="text-lg font-bold flex items-center gap-2" style={{ color: themeColors.text }}>
+                <FaPlus className="text-green-500" /> Add Offline Order
+              </h3>
+              <button onClick={() => setShowAddOrderModal(false)} className="p-2 hover:bg-gray-100 rounded-lg"><FaTimes /></button>
+            </div>
+            <form onSubmit={handleSubmitAddOrder} className="p-5 space-y-5">
+              {/* Customer Info - Read Only */}
+              <div className="p-3 rounded-lg border" style={{ backgroundColor: themeColors.background + "50", borderColor: themeColors.border }}>
+                <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Customer (Auto-filled)</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="opacity-60 text-xs">Name</p>
+                    <p className="font-bold">{customer.name}</p>
+                  </div>
+                  <div>
+                    <p className="opacity-60 text-xs">Phone</p>
+                    <p className="font-bold">{customer.mobile}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="opacity-60 text-xs">Address</p>
+                    <p className="font-bold">{`${customer.address?.house || ""} ${customer.address?.area || ""} ${customer.address?.city || ""}`.trim() || "N/A"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Add Items */}
+              <div>
+                <p className="text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>Products & AMC</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
+                  {/* Product Dropdown */}
+                  <div className="md:col-span-2 relative">
+                    <input
+                      type="text" readOnly placeholder="Select Product..."
+                      className="w-full border rounded p-2 cursor-pointer text-sm"
+                      style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                      onClick={() => setShowOrderProductDropdown(!showOrderProductDropdown)}
+                      value={newOrderItem.productId ? orderProducts.find(p => (p._id || p.id) === newOrderItem.productId)?.name || "" : ""}
+                    />
+                    {showOrderProductDropdown && (
+                      <div className="absolute z-[100001] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input autoFocus type="text" placeholder="Search..." className="w-full p-2 mb-2 rounded border text-sm"
+                          style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                          value={orderProductSearch} onChange={e => setOrderProductSearch(e.target.value)} />
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {orderProducts.filter(p => p.name.toLowerCase().includes(orderProductSearch.toLowerCase())).map(p => (
+                            <div key={p._id || p.id} className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm flex justify-between"
+                              onClick={() => { setNewOrderItem({ ...newOrderItem, productId: p._id || p.id }); setShowOrderProductDropdown(false); setOrderProductSearch(""); }}>
+                              <span className="font-bold">{p.name}</span>
+                              <span className="text-xs opacity-60">{fmtCurrencySimple(p.price || p.sellingPrice)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showOrderProductDropdown && <div className="fixed inset-0 z-[100000]" onClick={() => setShowOrderProductDropdown(false)}></div>}
+                  </div>
+
+                  {/* AMC Dropdown */}
+                  <div className="relative">
+                    <input
+                      type="text" readOnly placeholder="No AMC"
+                      className="w-full border rounded p-2 cursor-pointer text-sm"
+                      style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                      onClick={() => setShowOrderAmcDropdown(!showOrderAmcDropdown)}
+                      value={newOrderItem.amcId ? orderAmcPlans.find(a => a._id === newOrderItem.amcId)?.name || "No AMC" : "No AMC"}
+                    />
+                    {showOrderAmcDropdown && (
+                      <div className="absolute z-[100001] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input autoFocus type="text" placeholder="Search AMC..." className="w-full p-2 mb-2 rounded border text-sm"
+                          style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                          value={orderAmcSearch} onChange={e => setOrderAmcSearch(e.target.value)} />
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          <div className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm"
+                            onClick={() => { setNewOrderItem({ ...newOrderItem, amcId: "" }); setShowOrderAmcDropdown(false); setOrderAmcSearch(""); }}>No AMC</div>
+                          {orderAmcPlans.filter(p => p.name.toLowerCase().includes(orderAmcSearch.toLowerCase())).map(p => (
+                            <div key={p._id} className="p-2 hover:bg-black/5 cursor-pointer rounded text-sm flex justify-between"
+                              onClick={() => { setNewOrderItem({ ...newOrderItem, amcId: p._id }); setShowOrderAmcDropdown(false); setOrderAmcSearch(""); }}>
+                              <span className="font-bold">{p.name}</span>
+                              <span className="text-xs opacity-60">+{fmtCurrencySimple(p.price)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {showOrderAmcDropdown && <div className="fixed inset-0 z-[100000]" onClick={() => setShowOrderAmcDropdown(false)}></div>}
+                  </div>
+
+                  {/* Qty + Add */}
+                  <div className="flex gap-2">
+                    <input type="number" min="1" className="w-16 border rounded p-2 text-sm"
+                      value={newOrderItem.quantity} onChange={e => setNewOrderItem({ ...newOrderItem, quantity: e.target.value })}
+                      style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }} />
+                    <button type="button" onClick={handleAddOrderItem} className="bg-green-600 text-white px-3 rounded hover:bg-green-700 text-sm flex-1">Add</button>
+                  </div>
+                </div>
+
+                {/* Items List */}
+                <div className="space-y-2">
+                  {orderItems.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-2 rounded border text-sm" style={{ backgroundColor: themeColors.background + "50", borderColor: themeColors.border }}>
+                      <div>
+                        <span className="font-bold">{item.name}</span>
+                        {item.amcPlanName && <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-1 rounded">{item.amcPlanName}</span>}
+                        <span className="text-xs opacity-60 ml-2">x{item.quantity}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold">{fmtCurrencySimple(item.price * item.quantity)}</span>
+                        <button type="button" onClick={() => setOrderItems(orderItems.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700"><FaTrash size={11} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  {orderItems.length === 0 && <p className="text-xs text-center opacity-50">Koi item nahi add hua</p>}
+                </div>
+
+                {orderItems.length > 0 && (
+                  <div className="text-right font-black text-base mt-2" style={{ color: themeColors.text }}>
+                    Total: {fmtCurrencySimple(orderItems.reduce((s, i) => s + i.price * i.quantity, 0))}
+                  </div>
+                )}
+              </div>
+
+              {/* Payment */}
+              <div className="grid grid-cols-3 gap-3 border-t pt-4" style={{ borderColor: themeColors.border }}>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1 opacity-60" style={{ color: themeColors.text }}>Payment Method</label>
+                  <select className="w-full border rounded p-2 text-sm" value={orderPaymentMethod} onChange={e => setOrderPaymentMethod(e.target.value)}
+                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}>
+                    {["Cash", "UPI", "Card", "Bank Transfer", "Online"].map(m => <option key={m}>{m}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1 opacity-60" style={{ color: themeColors.text }}>Payment Status</label>
+                  <select className="w-full border rounded p-2 text-sm" value={orderPaymentStatus} onChange={e => setOrderPaymentStatus(e.target.value)}
+                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}>
+                    {["pending", "paid", "failed"].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1 opacity-60" style={{ color: themeColors.text }}>Order Status</label>
+                  <select className="w-full border rounded p-2 text-sm" value={orderStatus} onChange={e => setOrderStatus(e.target.value)}
+                    style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}>
+                    {["pending", "confirmed", "shipped", "delivered", "cancelled"].map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t" style={{ borderColor: themeColors.border }}>
+                <button type="button" onClick={() => setShowAddOrderModal(false)} className="px-4 py-2 rounded border hover:bg-slate-100 text-sm" style={{ color: themeColors.text, borderColor: themeColors.border }}>Cancel</button>
+                <button type="submit" className="px-6 py-2 rounded bg-green-600 text-white font-bold hover:bg-green-700 shadow text-sm">Create Order</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Book Service Modal */}
       {showBookServiceModal && selectedProduct && (

@@ -175,29 +175,21 @@ const Sidebar = ({
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between h-16 px-4 border-b"
+          className="flex items-center justify-center h-36 px-4 border-b"
           style={{ borderColor: themeColors.border }}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-2 w-full py-2">
             <img 
-              src="/sks-logo.png" 
+              src="/favicon.png" 
               alt="UNIXA Logo" 
-              className="w-8 h-8 object-contain" 
+              className="w-28 h-28 object-contain" 
             />
-            <div className="flex flex-col">
-              <h1
-                className="text-lg font-bold leading-tight"
-                style={{ color: themeColors.primary }}
-              >
-                UNIXA
-              </h1>
-              <span 
-                className="text-xs font-semibold uppercase tracking-wide"
-                style={{ color: themeColors.textSecondary }}
-              >
-                Admin Panel
-              </span>
-            </div>
+            <span 
+              className="text-xs font-bold uppercase tracking-widest"
+              style={{ color: themeColors.textSecondary }}
+            >
+              Admin Panel
+            </span>
           </div>
           <button
             onClick={onClose}
