@@ -10,8 +10,7 @@ import {
 } from "../apis/roParts";
 import { getImageUrl } from "../apis/http";
 import { getCategories } from "../apis/categories";
-import { listAmcPlans } from "../apis/amcPlans";
-import { FaCheck } from "react-icons/fa";
+import { listBrands } from "../apis/brands";
 import {
   FaWrench,
   FaPlus,
@@ -22,7 +21,6 @@ import {
   FaToggleOn,
   FaToggleOff,
   FaTimes,
-  FaFilter,
   FaQrcode
 } from "react-icons/fa";
 import { QRCodeCanvas } from "qrcode.react";
@@ -32,12 +30,14 @@ import "sweetalert2/dist/sweetalert2.min.css";
 const emptyForm = {
   p_id: "",
   name: "",
+  brand: "",
   price: "",
   discountPercent: "0",
   description: "",
   categoryId: "",
   isActive: true,
-  amcPlans: [],
+  warrantyYears: "0",
+  stock: "0",
 };
 
 export default function ROParts() {
@@ -49,7 +49,6 @@ export default function ROParts() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [allAmcPlans, setAllAmcPlans] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
   const [editing, setEditing] = useState(null);
@@ -63,19 +62,22 @@ export default function ROParts() {
 
   const [categorySearch, setCategorySearch] = useState("");
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [allBrands, setAllBrands] = useState([]);
+  const [brandSearch, setBrandSearch] = useState("");
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError("");
-      const [partsList, catsData, amcPlansData] = await Promise.all([
+      const [partsList, catsData, brandsList] = await Promise.all([
         listRoParts(),
         getCategories(),
-        listAmcPlans(true),
+        listBrands(),
       ]);
       setRoParts(partsList);
       setCategories(Array.isArray(catsData) ? catsData : catsData.categories || []);
-      setAllAmcPlans(amcPlansData || []);
+      setAllBrands(brandsList.filter(b => b.isActive) || []);
     } catch (e) {
       setError(e?.response?.data?.message || e?.message || "Failed to load data.");
     } finally {
@@ -100,22 +102,15 @@ export default function ROParts() {
     setIsModalOpen(true);
   };
 
+  const generatePId = (name) =>
+    name.trim().toLowerCase().replace(/[^a-z0-9]/g, "") + Date.now().toString().slice(-4);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const toggleAmcPlan = (planId) => {
-    setForm(prev => {
-      const exists = prev.amcPlans.includes(planId);
-      if (exists) {
-        return { ...prev, amcPlans: prev.amcPlans.filter(id => id !== planId) };
-      } else {
-        return { ...prev, amcPlans: [...prev.amcPlans, planId] };
-      }
+    setForm((prev) => {
+      const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
+      if (name === "name" && !editing) updated.p_id = generatePId(value);
+      return updated;
     });
   };
 
@@ -132,12 +127,14 @@ export default function ROParts() {
     setForm({
       p_id: part.p_id || "",
       name: part.name || "",
+      brand: part.brand || "",
       price: String(part.price || ""),
       discountPercent: String(part.discountPercent || "0"),
       description: part.description || "",
       categoryId: part.category?._id || part.category || "",
       isActive: part.isActive ?? true,
-      amcPlans: Array.isArray(part.amcPlans) ? part.amcPlans.map(a => a._id || a) : [],
+      stock: String(part.stock ?? "0"),
+      warrantyYears: String(part.warrantyYears || "0"),
     });
     setImagePreview(part.mainImage?.url ? getImageUrl(part.mainImage.url) : "");
     setImageFile(null);
@@ -149,14 +146,14 @@ export default function ROParts() {
     const fd = new FormData();
     fd.append("p_id", form.p_id);
     fd.append("name", form.name);
+    fd.append("brand", form.brand);
     fd.append("price", form.price);
     fd.append("discountPercent", form.discountPercent);
     fd.append("description", form.description);
     fd.append("categoryId", form.categoryId);
     fd.append("isActive", String(form.isActive));
-    if (form.amcPlans && form.amcPlans.length) {
-      fd.append("amcPlans", JSON.stringify(form.amcPlans));
-    }
+    fd.append("warrantyYears", form.warrantyYears);
+    fd.append("stock", form.stock);
     if (imageFile) fd.append("mainImage", imageFile);
     return fd;
   };
@@ -190,6 +187,16 @@ export default function ROParts() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleToggleWebsite = async (part) => {
+    const newVal = part.showOnWebsite === false ? true : false;
+    try {
+      const fd = new FormData();
+      fd.append("showOnWebsite", String(newVal));
+      await updateRoPart(part._id, fd);
+      setRoParts(prev => prev.map(p => p._id === part._id ? { ...p, showOnWebsite: newVal } : p));
+    } catch { Swal.fire("Error", "Failed to update", "error"); }
   };
 
   const handleDelete = async (part) => {
@@ -269,19 +276,22 @@ export default function ROParts() {
           <thead>
             <tr className="border-b" style={{ backgroundColor: themeColors.background + "40", borderColor: themeColors.border }}>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Image</th>
+              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">ID</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Part Details</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Category</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Pricing</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Status</th>
-              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">AMC Plans</th>
+              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Stock</th>
+              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Website</th>
+              <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60">Warranty</th>
               <th className="px-4 py-3 font-semibold uppercase text-[11px] tracking-wider opacity-60 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y" style={{ borderColor: themeColors.border }}>
             {loading ? (
-              <tr><td colSpan="6" className="py-20 text-center opacity-50">Loading parts...</td></tr>
+              <tr><td colSpan="8" className="py-20 text-center opacity-50">Loading parts...</td></tr>
             ) : filteredParts.length === 0 ? (
-              <tr><td colSpan="6" className="py-20 text-center opacity-50">No parts found matching your search.</td></tr>
+              <tr><td colSpan="8" className="py-20 text-center opacity-50">No parts found matching your search.</td></tr>
             ) : (
               filteredParts.map((part) => (
                 <tr key={part._id} className="hover:bg-slate-50/50 transition-colors">
@@ -289,7 +299,11 @@ export default function ROParts() {
                     <img src={getImageUrl(part.mainImage?.url)} alt={part.name} className="w-12 h-12 object-cover rounded-lg border shadow-sm" style={{ borderColor: themeColors.border }} />
                   </td>
                   <td className="px-4 py-3">
+                    <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold font-mono">{part.p_id || "-"}</span>
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="font-bold text-slate-800">{part.name}</div>
+                    {part.brand && <div className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider">{part.brand}</div>}
                     <div className="text-xs opacity-50 line-clamp-1">{part.description || "No description"}</div>
                   </td>
                   <td className="px-4 py-3">
@@ -313,17 +327,31 @@ export default function ROParts() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1 max-w-[150px]">
-                      {part.amcPlans?.length > 0 ? (
-                        part.amcPlans.map((p, idx) => (
-                          <span key={idx} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 text-[9px] font-bold rounded border border-indigo-100">
-                             {typeof p === 'object' ? p.name : allAmcPlans.find(ap => ap._id === p)?.name || 'Plan'}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-slate-300 italic">None</span>
-                      )}
-                    </div>
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black ${
+                      (part.stock ?? 0) <= 0 ? 'bg-red-100 text-red-600' :
+                      (part.stock ?? 0) <= 5 ? 'bg-amber-100 text-amber-700' :
+                      'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {(part.stock ?? 0) <= 0 ? 'Out of Stock' : `${part.stock} units`}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => handleToggleWebsite(part)}
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase transition-all ${
+                        part.showOnWebsite !== false
+                          ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                          : 'bg-orange-100 text-orange-600 hover:bg-orange-200'
+                      }`}
+                    >
+                      {part.showOnWebsite !== false ? 'Visible' : 'Hidden'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    {Number(part.warrantyYears) > 0
+                      ? <span className="px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-bold">{part.warrantyYears} Year{Number(part.warrantyYears) > 1 ? 's' : ''}</span>
+                      : <span className="text-[10px] text-slate-300 italic">No Warranty</span>
+                    }
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
@@ -361,28 +389,16 @@ export default function ROParts() {
             </div>
 
             <form onSubmit={handleSubmit}>
-              {/* Landscape: Left fields | Right AMC Plans */}
-              <div className="flex divide-x" style={{ minHeight: 420 }}>
-
-                {/* LEFT — Form Fields */}
-                <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part P ID *</label>
-                      <input
-                        type="text" required value={form.p_id} name="p_id" onChange={handleChange}
-                        className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm"
-                        placeholder="e.g. 93101"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
-                      <div className="flex items-center h-[38px]">
-                        <button type="button" onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))} className={`text-2xl transition-colors ${form.isActive ? 'text-blue-600' : 'text-slate-300'}`}>
-                          {form.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                        </button>
-                        <span className="ml-2 text-xs font-semibold">{form.isActive ? 'Active' : 'Inactive'}</span>
-                      </div>
+              <div className="p-6 grid grid-cols-2 gap-x-6 gap-y-4">
+                {/* LEFT COLUMN */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Status</label>
+                    <div className="flex items-center h-[38px]">
+                      <button type="button" onClick={() => setForm(f => ({ ...f, isActive: !f.isActive }))} className={`text-2xl transition-colors ${form.isActive ? 'text-blue-600' : 'text-slate-300'}`}>
+                        {form.isActive ? <FaToggleOn /> : <FaToggleOff />}
+                      </button>
+                      <span className="ml-2 text-xs font-semibold">{form.isActive ? 'Active' : 'Inactive'}</span>
                     </div>
                   </div>
 
@@ -394,7 +410,50 @@ export default function ROParts() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Stock (Units)</label>
+                    <input
+                      type="number" min="0" value={form.stock} name="stock" onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm font-bold"
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div className="relative">
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Brand</label>
+                    <input
+                      type="text" readOnly placeholder="Select Brand"
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm cursor-pointer bg-white"
+                      onClick={() => setShowBrandDropdown(!showBrandDropdown)}
+                      value={form.brand}
+                    />
+                    {showBrandDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3 bg-white" style={{ borderColor: themeColors.border }}>
+                        <div className="relative mb-2">
+                          <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                          <input type="text" placeholder="Search brand..." autoFocus
+                            className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none"
+                            style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                            value={brandSearch} onChange={e => setBrandSearch(e.target.value)}
+                          />
+                        </div>
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {allBrands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).map(b => (
+                            <div key={b._id} className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm"
+                              onClick={() => { setForm(f => ({ ...f, brand: b.name })); setShowBrandDropdown(false); setBrandSearch(""); }}>
+                              <span className="font-medium text-slate-800">{b.name}</span>
+                            </div>
+                          ))}
+                          {allBrands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+                            <div className="p-2 text-center text-xs opacity-50">No brands found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showBrandDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowBrandDropdown(false)} />}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Base Price (₹) *</label>
                       <input
@@ -444,47 +503,42 @@ export default function ROParts() {
                     )}
                     {showCategoryDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowCategoryDropdown(false)} />}
                   </div>
+                </div>
 
+                {/* RIGHT COLUMN */}
+                <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Part Image *</label>
                     <div className="flex items-center gap-4">
-                      <div className="relative group w-16 h-16 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 group-hover:border-blue-400 transition-colors shrink-0">
+                      <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden bg-slate-50 hover:border-blue-400 transition-colors shrink-0">
                         {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover" /> : <FaPlus className="text-slate-300" />}
                         <input type="file" onChange={handleImageChange} className="absolute inset-0 opacity-0 cursor-pointer" accept="image/*" />
                       </div>
-                      <span className="text-[10px] text-slate-400">JPG, PNG or WEBP allowed.</span>
+                      <span className="text-[10px] text-slate-400">Click to upload.<br/>JPG, PNG or WEBP allowed.</span>
                     </div>
                   </div>
 
                   <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Warranty</label>
+                    <select
+                      name="warrantyYears"
+                      value={form.warrantyYears}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none text-sm bg-white"
+                    >
+                      <option value="0">No Warranty</option>
+                      <option value="1">1 Year</option>
+                      <option value="2">2 Years</option>
+                      <option value="3">3 Years</option>
+                    </select>
+                  </div>
+
+                  <div>
                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Short Description</label>
-                    <textarea rows="3" value={form.description} name="description" onChange={handleChange}
+                    <textarea rows="5" value={form.description} name="description" onChange={handleChange}
                       className="w-full px-3 py-2 rounded-xl border focus:ring-2 focus:ring-blue-500/20 outline-none resize-none text-sm"
                       placeholder="Brief details..."
                     />
-                  </div>
-                </div>
-
-                {/* RIGHT — AMC Plans */}
-                <div className="w-72 p-6 flex flex-col">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-3">Applicable AMC Plans</label>
-                  <div className="flex-1 overflow-y-auto space-y-2">
-                    {allAmcPlans.map((plan) => (
-                      <div key={plan._id} onClick={() => toggleAmcPlan(plan._id)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border cursor-pointer transition-all ${
-                          form.amcPlans.includes(plan._id) ? "border-blue-500 bg-blue-50" : "border-slate-200 hover:border-slate-300"
-                        }`}
-                      >
-                        <div>
-                          <div className="text-[11px] font-semibold">{plan.name}</div>
-                          <div className="text-[10px] opacity-60">₹{plan.price} / {plan.durationMonths}m</div>
-                        </div>
-                        {form.amcPlans.includes(plan._id)
-                          ? <FaCheck className="text-blue-500 text-[10px] shrink-0" />
-                          : <div className="w-3 h-3 rounded-full border border-gray-300 shrink-0" />}
-                      </div>
-                    ))}
-                    {allAmcPlans.length === 0 && <p className="text-[10px] opacity-50 italic">No AMC plans found.</p>}
                   </div>
                 </div>
               </div>

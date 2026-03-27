@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
-import { FaShieldAlt, FaSearch, FaUser, FaPhone, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaEye, FaClock, FaSms, FaTools, FaHistory } from "react-icons/fa";
+import { FaShieldAlt, FaSearch, FaUser, FaPhone, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaEye, FaClock, FaSms, FaTools, FaHistory, FaClipboardList, FaCheck, FaBan, FaRocket } from "react-icons/fa";
 import http from "../apis/http";
 import Swal from "sweetalert2";
 
 export default function UserAMCManagement() {
   const { themeColors } = useTheme();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('subscriptions'); // 'subscriptions' | 'enquiries'
   const [loading, setLoading] = useState(true);
   const [userAmcs, setUserAmcs] = useState([]);
   const [dueAmcs, setDueAmcs] = useState([]);
@@ -15,6 +16,14 @@ export default function UserAMCManagement() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [stats, setStats] = useState({ total: 0, active: 0, expired: 0, revenue: 0, expiringSoon: 0, dueServices: 0 });
   const [employees, setEmployees] = useState([]);
+
+  // Enquiries state
+  const [enquiries, setEnquiries] = useState([]);
+  const [enquiryFilter, setEnquiryFilter] = useState('All');
+  const [enquirySearch, setEnquirySearch] = useState('');
+  const [enquiryLoading, setEnquiryLoading] = useState(false);
+  const [expandedEnquiry, setExpandedEnquiry] = useState(null);
+  const [customerHistoryMap, setCustomerHistoryMap] = useState({});
   
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedAmcForBooking, setSelectedAmcForBooking] = useState(null);
@@ -109,6 +118,153 @@ export default function UserAMCManagement() {
       }));
     } catch (err) {
       console.error("Error fetching due AMCs:", err);
+    }
+  };
+
+  const fetchEnquiries = async () => {
+    setEnquiryLoading(true);
+    try {
+      const { data } = await http.get(`/api/amc-enquiries/admin?status=${enquiryFilter}`);
+      setEnquiries(data.enquiries || []);
+    } catch (err) {
+      console.error('Error fetching enquiries:', err);
+    } finally {
+      setEnquiryLoading(false);
+    }
+  };
+
+  const fetchCustomerHistory = async (phone) => {
+    try {
+      const { data } = await http.get(`/api/amc-enquiries/admin/customer/${phone}`);
+      return data;
+    } catch { return null; }
+  };
+
+  useEffect(() => { if (activeTab === 'enquiries') fetchEnquiries(); }, [activeTab, enquiryFilter]);
+
+  const handleVerifyEnquiry = async (enq) => {
+    const { value: notes } = await Swal.fire({
+      title: 'Verify Enquiry',
+      input: 'textarea',
+      inputLabel: 'Admin Notes (optional)',
+      inputPlaceholder: 'Add verification notes...',
+      showCancelButton: true,
+      confirmButtonText: 'Verify',
+      confirmButtonColor: '#2563eb',
+    });
+    if (notes === undefined) return;
+    try {
+      await http.put(`/api/amc-enquiries/admin/${enq._id}/verify`, { adminNotes: notes });
+      Swal.fire('Verified!', 'Enquiry marked as verified.', 'success');
+      fetchEnquiries();
+    } catch (err) { Swal.fire('Error', 'Failed to verify', 'error'); }
+  };
+
+  const handleRejectEnquiry = async (enq) => {
+    const { value: notes } = await Swal.fire({
+      title: 'Reject Enquiry',
+      input: 'textarea',
+      inputLabel: 'Reason for rejection',
+      inputPlaceholder: 'Enter reason...',
+      showCancelButton: true,
+      confirmButtonText: 'Reject',
+      confirmButtonColor: '#dc2626',
+    });
+    if (notes === undefined) return;
+    try {
+      await http.put(`/api/amc-enquiries/admin/${enq._id}/reject`, { adminNotes: notes });
+      Swal.fire('Rejected', 'Enquiry has been rejected.', 'info');
+      fetchEnquiries();
+    } catch (err) { Swal.fire('Error', 'Failed to reject', 'error'); }
+  };
+
+  const handleActivateAmc = async (enq) => {
+    // Fetch AMC plans for dropdown
+    let amcPlans = [];
+    try { const { data } = await http.get('/api/amc-plans'); amcPlans = data.plans || []; } catch {}
+
+    const planOptions = amcPlans.map(p => `<option value="${p._id}" data-name="${p.name}" data-services="${p.servicesIncluded || 4}">${p.name}</option>`).join('');
+
+    const result = await Swal.fire({
+      title: 'Activate AMC',
+      width: 600,
+      html: `
+        <div class="text-left space-y-3 text-sm">
+          <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+            <p class="font-bold text-blue-800">${enq.name} &bull; ${enq.phone}</p>
+            <p class="text-blue-600 text-xs mt-0.5">${enq.amcPlanName}${enq.productName ? ' — ' + enq.productName : ''}${enq.duration ? ' (' + enq.duration + ')' : ''}</p>
+            ${enq.price ? '<p class="text-green-700 font-bold text-xs mt-0.5">Requested Price: ₹' + enq.price + '</p>' : ''}
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold mb-1">Product Name *</label>
+              <input id="act-product" type="text" value="${enq.productName || ''}" placeholder="e.g. RO Purifier" class="w-full p-2 border rounded text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Start Date *</label>
+              <input id="act-start" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full p-2 border rounded text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Duration (Months) *</label>
+              <select id="act-duration" class="w-full p-2 border rounded text-sm">
+                <option value="12">1 Year (12 months)</option>
+                <option value="24">2 Years (24 months)</option>
+                <option value="36">3 Years (36 months)</option>
+                <option value="6">6 Months</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Services Included *</label>
+              <input id="act-services" type="number" value="4" min="1" class="w-full p-2 border rounded text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Amount Paid (₹) *</label>
+              <input id="act-amount" type="number" value="${enq.price || 0}" min="0" class="w-full p-2 border rounded text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Payment Mode *</label>
+              <select id="act-paymode" class="w-full p-2 border rounded text-sm">
+                <option value="Cash">Cash</option>
+                <option value="Online">Online</option>
+                <option value="UPI">UPI</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Free">Free</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-bold mb-1">Payment Status</label>
+              <select id="act-paystatus" class="w-full p-2 border rounded text-sm">
+                <option value="Paid">Paid</option>
+                <option value="Partial">Partial</option>
+                <option value="Pending">Pending</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: '✅ Activate AMC',
+      confirmButtonColor: '#059669',
+      preConfirm: () => ({
+        productName: document.getElementById('act-product').value || enq.productName || 'Product',
+        startDate: document.getElementById('act-start').value,
+        durationMonths: parseInt(document.getElementById('act-duration').value),
+        servicesTotal: parseInt(document.getElementById('act-services').value) || 4,
+        amountPaid: parseFloat(document.getElementById('act-amount').value) || 0,
+        paymentMode: document.getElementById('act-paymode').value,
+        paymentStatus: document.getElementById('act-paystatus').value,
+        userId: enq.userId?._id || null,
+        customerPhone: enq.phone,
+      })
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await http.post(`/api/amc-enquiries/admin/${enq._id}/activate`, result.value);
+      Swal.fire('AMC Activated!', `AMC for ${result.value.productName} is now active.`, 'success');
+      fetchEnquiries();
+      fetchUserAmcs();
+    } catch (err) {
+      Swal.fire('Error', err.response?.data?.message || 'Failed to activate', 'error');
     }
   };
 
@@ -465,9 +621,22 @@ export default function UserAMCManagement() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <FaShieldAlt className="text-green-600" /> User AMC Subscriptions
         </h1>
+        {/* Tabs */}
+        <div className="flex gap-2 p-1 rounded-lg border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+          <button onClick={() => setActiveTab('subscriptions')} className={`px-4 py-2 text-sm rounded-md font-bold transition flex items-center gap-2 ${activeTab === 'subscriptions' ? 'bg-blue-600 text-white' : ''}`}>
+            <FaShieldAlt size={12} /> Subscriptions
+          </button>
+          <button onClick={() => setActiveTab('enquiries')} className={`px-4 py-2 text-sm rounded-md font-bold transition flex items-center gap-2 ${activeTab === 'enquiries' ? 'bg-blue-600 text-white' : ''}`}>
+            <FaClipboardList size={12} /> AMC Enquiries
+            {enquiries.filter(e => e.status === 'Pending').length > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{enquiries.filter(e => e.status === 'Pending').length}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
+      {activeTab === 'subscriptions' && (<>
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <StatCard title="Total AMCs" value={stats.total} icon={FaShieldAlt} color="text-blue-600" />
         <StatCard title="Active" value={stats.active} icon={FaCheckCircle} color="text-emerald-600" />
@@ -683,6 +852,172 @@ export default function UserAMCManagement() {
           </table>
         </div>
       </div>
+      </>)}
+
+      {/* AMC Enquiries Tab */}
+      {activeTab === 'enquiries' && (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            <div className="flex flex-wrap gap-2 p-1 rounded-lg border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              {['All','Pending','Verified','Activated','Rejected'].map(s => (
+                <button key={s} onClick={() => setEnquiryFilter(s)} className={`px-4 py-2 text-sm rounded-md transition font-medium ${enquiryFilter === s ? 'bg-blue-600 text-white' : ''}`}>{s}</button>
+              ))}
+            </div>
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-3 opacity-50" />
+              <input type="text" placeholder="Search name, phone, product..." value={enquirySearch} onChange={e => setEnquirySearch(e.target.value)}
+                className="pl-10 pr-4 py-2 rounded-lg border w-full md:w-80"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="text-xs uppercase opacity-70 border-b" style={{ backgroundColor: themeColors.background }}>
+                  <tr>
+                    <th className="p-4">Customer</th>
+                    <th className="p-4">Product / Brand</th>
+                    <th className="p-4">Plan</th>
+                    <th className="p-4">Price</th>
+                    <th className="p-4">Purchased?</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: themeColors.border }}>
+                  {enquiryLoading ? (
+                    <tr><td colSpan="8" className="p-8 text-center">Loading...</td></tr>
+                  ) : enquiries.filter(e =>
+                      !enquirySearch ||
+                      e.name?.toLowerCase().includes(enquirySearch.toLowerCase()) ||
+                      e.phone?.includes(enquirySearch) ||
+                      e.productName?.toLowerCase().includes(enquirySearch.toLowerCase())
+                    ).length === 0 ? (
+                    <tr><td colSpan="8" className="p-8 text-center opacity-50">No enquiries found</td></tr>
+                  ) : enquiries.filter(e =>
+                      !enquirySearch ||
+                      e.name?.toLowerCase().includes(enquirySearch.toLowerCase()) ||
+                      e.phone?.includes(enquirySearch) ||
+                      e.productName?.toLowerCase().includes(enquirySearch.toLowerCase())
+                    ).map(enq => (
+                    <>
+                      <tr key={enq._id} className="hover:bg-black/5 cursor-pointer" onClick={async () => {
+                        const newId = expandedEnquiry === enq._id ? null : enq._id;
+                        setExpandedEnquiry(newId);
+                        if (newId && !customerHistoryMap[enq.phone]) {
+                          const hist = await fetchCustomerHistory(enq.phone);
+                          if (hist) setCustomerHistoryMap(prev => ({ ...prev, [enq.phone]: hist }));
+                        }
+                      }}>
+                        <td className="p-4">
+                          <div className="font-bold">{enq.name}</div>
+                          <div className="text-xs opacity-60 flex items-center gap-1 mt-0.5"><FaPhone size={10} /> {enq.phone}</div>
+                          {enq.email && <div className="text-xs opacity-50">{enq.email}</div>}
+                        </td>
+                        <td className="p-4">
+                          <div className="font-bold">{enq.productName || <span className="opacity-40 text-xs">Not specified</span>}</div>
+                          <div className="text-xs opacity-60">{enq.amcPlanId?.name || enq.amcPlanName}</div>
+                        </td>
+                        <td className="p-4">
+                          <div className="font-bold text-blue-700">{enq.amcPlanName}</div>
+                          <div className="text-xs opacity-60">{enq.duration}</div>
+                        </td>
+                        <td className="p-4 font-bold text-green-600">₹{enq.price}</td>
+                        <td className="p-4">
+                          {enq.hasPurchasedFromUs
+                            ? <span className="px-2 py-1 bg-green-50 text-green-700 text-xs font-bold rounded border border-green-200">✅ Yes</span>
+                            : <span className="px-2 py-1 bg-orange-50 text-orange-700 text-xs font-bold rounded border border-orange-200">⚠️ No</span>}
+                        </td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-xs font-bold border ${
+                            enq.status === 'Pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                            enq.status === 'Verified' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                            enq.status === 'Activated' ? 'bg-green-50 text-green-700 border-green-200' :
+                            'bg-red-50 text-red-700 border-red-200'
+                          }`}>{enq.status}</span>
+                        </td>
+                        <td className="p-4 text-xs opacity-60">{new Date(enq.createdAt).toLocaleDateString('en-IN')}</td>
+                        <td className="p-4">
+                          <div className="flex gap-1.5">
+                            {enq.status === 'Pending' && (
+                              <>
+                                <button onClick={e => { e.stopPropagation(); handleVerifyEnquiry(enq); }} className="p-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-600 hover:text-white transition" title="Verify"><FaCheck size={12} /></button>
+                                <button onClick={e => { e.stopPropagation(); handleRejectEnquiry(enq); }} className="p-1.5 bg-red-50 text-red-600 rounded hover:bg-red-600 hover:text-white transition" title="Reject"><FaBan size={12} /></button>
+                              </>
+                            )}
+                            {enq.status === 'Verified' && (
+                              <button onClick={e => { e.stopPropagation(); handleActivateAmc(enq); }} className="p-1.5 bg-green-50 text-green-600 rounded hover:bg-green-600 hover:text-white transition flex items-center gap-1 text-xs font-bold px-3" title="Activate AMC">
+                                <FaRocket size={11} /> Activate
+                              </button>
+                            )}
+                            {enq.status === 'Activated' && (
+                              <span className="text-xs text-green-600 font-bold">AMC Active</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      {expandedEnquiry === enq._id && (
+                        <tr key={enq._id + '-detail'} style={{ backgroundColor: themeColors.background }}>
+                          <td colSpan="8" className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              <div>
+                                <h4 className="font-bold text-sm mb-3 opacity-70 uppercase tracking-wider">Customer Details</h4>
+                                <div className="space-y-1 text-sm">
+                                  <p><span className="opacity-50">Name:</span> <strong>{enq.name}</strong></p>
+                                  <p><span className="opacity-50">Phone:</span> <strong>{enq.phone}</strong></p>
+                                  {enq.email && <p><span className="opacity-50">Email:</span> {enq.email}</p>}
+                                  {enq.address && <p><span className="opacity-50">Address:</span> {enq.address}</p>}
+                                  {enq.notes && <p className="mt-2 p-2 bg-blue-50 rounded text-xs border border-blue-100"><strong>Notes:</strong> {enq.notes}</p>}
+                                  {enq.adminNotes && <p className="mt-2 p-2 bg-yellow-50 rounded text-xs border border-yellow-200"><strong>Admin Notes:</strong> {enq.adminNotes}</p>}
+                                </div>
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-sm mb-3 opacity-70 uppercase tracking-wider">
+                                  Delivered Orders ({customerHistoryMap[enq.phone]?.orders?.length || 0})
+                                </h4>
+                                {!customerHistoryMap[enq.phone] ? (
+                                  <p className="text-xs opacity-50">Loading...</p>
+                                ) : customerHistoryMap[enq.phone]?.orders?.length > 0 ? (
+                                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                                    {customerHistoryMap[enq.phone].orders.map((o, oi) => (
+                                      <div key={oi} className="p-3 rounded-xl border text-xs" style={{ borderColor: themeColors.border }}>
+                                        <div className="flex justify-between items-start mb-2">
+                                          <span className="font-black text-blue-700">#{o._id?.toString().slice(-6).toUpperCase()}</span>
+                                          <span className={`px-2 py-0.5 rounded font-bold uppercase text-[10px] ${
+                                            o.status === 'delivered' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
+                                          }`}>{o.status}</span>
+                                        </div>
+                                        {o.items?.map((item, ii) => (
+                                          <div key={ii} className="font-bold text-slate-700 mb-1">{item.productName}</div>
+                                        ))}
+                                        <div className="text-slate-400 space-y-0.5 mt-2">
+                                          <p>📅 Ordered: {new Date(o.createdAt).toLocaleDateString('en-IN')}</p>
+                                          {o.deliveredAt && <p>✅ Delivered: {new Date(o.deliveredAt).toLocaleDateString('en-IN')}</p>}
+                                          <p>📍 {o.shippingAddress?.addressLine1}, {o.shippingAddress?.city}, {o.shippingAddress?.state} - {o.shippingAddress?.pincode}</p>
+                                          <p>💰 ₹{o.total?.toLocaleString()}</p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-xs opacity-50 p-3 bg-slate-50 rounded-xl border border-slate-100">No delivered orders found for this phone number.</p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Booking Modal */}
       {isBookingModalOpen && selectedAmcForBooking && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

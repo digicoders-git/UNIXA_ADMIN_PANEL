@@ -18,6 +18,8 @@ import {
   FaWrench,
   FaTicketAlt,
   FaUserPlus,
+  FaTag,
+  FaExclamationCircle,
 } from "react-icons/fa";
 
 // pages
@@ -36,7 +38,7 @@ const Transactions = lazy(() => import("../pages/Transactions"));
 const ChangePassword = lazy(() => import("../pages/ChangePassword"));
 const Employees = lazy(() => import("../pages/Employees"));
 const Customers = lazy(() => import("../pages/Customers"));
-// const AmcPlans = lazy(() => import("../pages/AmcPlans"));
+const AmcPlans = lazy(() => import("../pages/AmcPlans"));
 const ServiceRequests = lazy(() => import("../pages/ServiceRequests"));
 const EmployeeAssets = lazy(() => import("../pages/EmployeeAssets"));
 const AssetsHistory = lazy(() => import("../pages/AssetsHistory"));
@@ -47,28 +49,33 @@ const Reviews = lazy(() => import("../pages/Reviews"));
 const StockManagement = lazy(() => import("../pages/StockManagement"));
 const ROParts = lazy(() => import("../pages/ROParts"));
 const RentalPlanManagement = lazy(() => import("../pages/RentalPlanManagement"));
+const RentalROTracking = lazy(() => import("../pages/RentalROTracking"));
 const AssignTicket = lazy(() => import("../pages/AssignTicket"));
+const Complaints = lazy(() => import("../pages/Complaints"));
 const LeadManagement = lazy(() => import("../pages/LeadManagement"));
 const AmcJobs = lazy(() => import("../pages/AmcJobs"));
 const CustomerProductHistory = lazy(() => import("../pages/CustomerProductHistory"));
 const CustomerDetailPage = lazy(() => import("../pages/CustomerDetailPage"));
 const UserAMCHistory = lazy(() => import("../pages/UserAMCHistory"));
+const Brands = lazy(() => import("../pages/Brands"));
 const SMSMessages = lazy(() => import("../pages/SMSMessages"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
-  { path: "/categories", component: Categories, name: "Categories", icon: FaBox },
+  { path: "/categories", component: Categories, name: "Add Categories", icon: FaBox },
+  { path: "/brands", component: Brands, name: "Brands", icon: FaTag },
+  { path: "/products", component: Products, name: "Add Products", icon: FaBox },
+  { path: "/ro-parts", component: ROParts, name: "Add RO Parts", icon: FaWrench },
+  { path: "/rental-plans", component: RentalPlanManagement, name: "Rental Plans", icon: FaBox },
+  { path: "/rental-tracking", component: RentalROTracking, name: "Rental RO Tracking", icon: FaWrench },
   {
     name: "AMC",
     icon: FaShieldAlt,
     children: [
-      { path: "/amc", component: AMCManagement, name: "AMC Plans", icon: FaShieldAlt },
+      { path: "/amc", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
       { path: "/user-amc", component: UserAMCManagement, name: "User AMCs", icon: FaUsers },
     ]
   },
-  { path: "/products", component: Products, name: "Products", icon: FaBox },
-  { path: "/ro-parts", component: ROParts, name: "RO Parts", icon: FaWrench },
-  { path: "/rental-plans", component: RentalPlanManagement, name: "Rental Plans", icon: FaBox },
   { path: "/stock", component: StockManagement, name: "Stock Management", icon: FaDolly },
   { path: "/offers", component: Offers, name: "Offers", icon: FaCoins },
 
@@ -97,6 +104,7 @@ const routes = [
   { path: "/customer-detail/:customerId", component: CustomerDetailPage, name: "Customer Detail", icon: FaBox, hide: true },
   // { path: "/amc-plans", component: AmcPlans, name: "AMC Plans", icon: FaShieldAlt },
   { path: "/service-requests", component: ServiceRequests, name: "Service Requests", icon: FaWrench },
+  { path: "/complaints", component: Complaints, name: "Complaints", icon: FaExclamationCircle },
   { path: "/amc-jobs", component: AmcJobs, name: "AMC Service Jobs", icon: FaWrench },
   { path: "/assign-ticket", component: AssignTicket, name: "Assign Tickets", icon: FaTicketAlt },
   { path: "/notifications", component: Notifications, name: "Notifications", icon: FaBell },

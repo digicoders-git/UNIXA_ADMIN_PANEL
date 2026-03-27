@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { FaUser, FaPhone, FaEnvelope, FaMapMarkerAlt, FaFire, FaSun, FaSnowflake, FaEye, FaEdit, FaTrash, FaPlus, FaTicketAlt, FaTimes } from "react-icons/fa";
+import { FaUser, FaPhone, FaEnvelope, FaMapMarkerAlt, FaFire, FaSun, FaSnowflake, FaEye, FaEdit, FaTrash, FaPlus, FaTicketAlt, FaTimes, FaCheckCircle, FaCalendarAlt, FaCalendarCheck, FaClock, FaBan } from "react-icons/fa";
 import http from "../apis/http";
 import { createCustomer } from "../apis/customers";
 import Swal from "sweetalert2";
@@ -15,6 +15,10 @@ export default function LeadManagement() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [selectedLeadForSchedule, setSelectedLeadForSchedule] = useState(null);
+  const [scheduleData, setScheduleData] = useState({ scheduledDate: "", scheduleNote: "" });
+  const [activeTab, setActiveTab] = useState("leads"); // "leads" | "schedule"
 
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedLeadForAssign, setSelectedLeadForAssign] = useState(null);
@@ -62,6 +66,37 @@ export default function LeadManagement() {
       console.error("Error fetching leads:", error);
       setLeads([]);
       Swal.fire("Error", "Failed to load leads", "error");
+    }
+  };
+
+  const handleVerify = async (lead) => {
+    try {
+      await http.patch(`/api/leads/${lead._id}/verify`);
+      setLeads(prev => prev.map(l => l._id === lead._id ? { ...l, verified: !l.verified } : l));
+    } catch (error) {
+      Swal.fire("Error", "Failed to update verification", "error");
+    }
+  };
+
+  const handleScheduleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { data } = await http.patch(`/api/leads/${selectedLeadForSchedule._id}/schedule`, scheduleData);
+      setLeads(prev => prev.map(l => l._id === selectedLeadForSchedule._id ? data.lead : l));
+      Swal.fire("Success", "Service scheduled successfully", "success");
+      setIsScheduleModalOpen(false);
+      setScheduleData({ scheduledDate: "", scheduleNote: "" });
+    } catch (error) {
+      Swal.fire("Error", "Failed to schedule service", "error");
+    }
+  };
+
+  const handleScheduleStatusUpdate = async (leadId, scheduleStatus) => {
+    try {
+      const { data } = await http.patch(`/api/leads/${leadId}/schedule-status`, { scheduleStatus });
+      setLeads(prev => prev.map(l => l._id === leadId ? data.lead : l));
+    } catch (error) {
+      Swal.fire("Error", "Failed to update status", "error");
     }
   };
 
@@ -225,13 +260,17 @@ export default function LeadManagement() {
     }
   };
 
+  const productCategories = ['All', 'Product', 'Part', 'Rent', 'AMC', 'Water Testing', 'Installation', 'Service Paid Type', 'Others', 'Demo'];
+  const [productFilter, setProductFilter] = useState('All');
+
   const filteredLeads = leads.filter(lead => {
     const matchesStatus = statusFilter === "All" || lead.leadStatus === statusFilter;
+    const matchesProduct = productFilter === 'All' || (lead.productInterest || '') === productFilter;
     const matchesSearch =
       lead.name?.toLowerCase().includes(search.toLowerCase()) ||
       lead.phone?.includes(search) ||
       lead.email?.toLowerCase().includes(search.toLowerCase());
-    return matchesStatus && matchesSearch;
+    return matchesStatus && matchesProduct && matchesSearch;
   });
 
   const getStatusIcon = (status) => {
@@ -272,6 +311,15 @@ export default function LeadManagement() {
     }
   };
 
+  const scheduledLeads = leads.filter(l => l.serviceSchedule?.scheduledDate);
+  const upcomingCount = scheduledLeads.filter(l => l.serviceSchedule?.scheduleStatus === "Upcoming").length;
+  const completedScheduleCount = scheduledLeads.filter(l => l.serviceSchedule?.scheduleStatus === "Completed").length;
+
+  const statsFiltered = productFilter === 'All' ? leads : leads.filter(l => (l.productInterest || '') === productFilter);
+  const statsTotal = statsFiltered.length;
+  const statsCompleted = statsFiltered.filter(l => getLeadTicketStatus(l._id) === 'Completed').length;
+  const statsPending = statsFiltered.filter(l => getLeadTicketStatus(l._id) !== 'Completed').length;
+
   return (
     <div className="space-y-6 min-h-screen pb-10" style={{ color: themeColors.text }}>
       <div className="flex justify-between items-center">
@@ -284,6 +332,125 @@ export default function LeadManagement() {
         >
           <FaTicketAlt /> Assign Lead
         </button>
+      </div>
+
+      {/* Tab Switcher */}
+      <div className="flex gap-2 p-1 rounded-xl border w-fit" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+        <button onClick={() => setActiveTab("leads")} className={`px-5 py-2 rounded-lg text-sm font-bold transition ${activeTab === "leads" ? "bg-blue-600 text-white" : ""}`}>Leads</button>
+        <button onClick={() => setActiveTab("schedule")} className={`px-5 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === "schedule" ? "bg-blue-600 text-white" : ""}`}>
+          <FaCalendarAlt size={12} /> Schedule
+          {upcomingCount > 0 && <span className="bg-orange-500 text-white text-xs rounded-full px-2">{upcomingCount}</span>}
+        </button>
+      </div>
+
+      {activeTab === "schedule" && (
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="rounded-xl p-4 border flex items-center gap-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><FaCalendarAlt className="text-blue-600" /></div>
+              <div><div className="text-2xl font-bold">{scheduledLeads.length}</div><div className="text-xs opacity-60">Total Scheduled</div></div>
+            </div>
+            <div className="rounded-xl p-4 border flex items-center gap-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center"><FaClock className="text-orange-600" /></div>
+              <div><div className="text-2xl font-bold">{upcomingCount}</div><div className="text-xs opacity-60">Upcoming</div></div>
+            </div>
+            <div className="rounded-xl p-4 border flex items-center gap-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center"><FaCalendarCheck className="text-green-600" /></div>
+              <div><div className="text-2xl font-bold">{completedScheduleCount}</div><div className="text-xs opacity-60">Completed</div></div>
+            </div>
+          </div>
+
+          {/* Schedule Table */}
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="text-xs uppercase opacity-70 border-b" style={{ backgroundColor: themeColors.background }}>
+                  <tr>
+                    <th className="p-4">Customer</th>
+                    <th className="p-4">Phone</th>
+                    <th className="p-4">Scheduled Date</th>
+                    <th className="p-4">Note</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
+                  {scheduledLeads.length === 0 ? (
+                    <tr><td colSpan="6" className="p-8 text-center opacity-50">No scheduled services</td></tr>
+                  ) : (
+                    scheduledLeads.sort((a, b) => new Date(a.serviceSchedule.scheduledDate) - new Date(b.serviceSchedule.scheduledDate)).map(lead => (
+                      <tr key={lead._id} className="hover:bg-black/5">
+                        <td className="p-4 font-bold">{lead.name}</td>
+                        <td className="p-4">{lead.phone}</td>
+                        <td className="p-4">
+                          <span className="flex items-center gap-2">
+                            <FaCalendarAlt className="text-blue-500" size={12} />
+                            {new Date(lead.serviceSchedule.scheduledDate).toLocaleDateString('en-IN')}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs opacity-70">{lead.serviceSchedule.scheduleNote || '-'}</td>
+                        <td className="p-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            lead.serviceSchedule.scheduleStatus === 'Completed' ? 'bg-green-50 text-green-700' :
+                            lead.serviceSchedule.scheduleStatus === 'Cancelled' ? 'bg-red-50 text-red-700' :
+                            'bg-orange-50 text-orange-700'
+                          }`}>{lead.serviceSchedule.scheduleStatus}</span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex gap-2">
+                            {lead.serviceSchedule.scheduleStatus === 'Upcoming' && (
+                              <>
+                                <button onClick={() => handleScheduleStatusUpdate(lead._id, 'Completed')} className="p-2 hover:bg-green-50 rounded-lg text-green-600 transition" title="Mark Completed"><FaCalendarCheck size={13} /></button>
+                                <button onClick={() => handleScheduleStatusUpdate(lead._id, 'Cancelled')} className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition" title="Cancel"><FaBan size={13} /></button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "leads" && (
+      <>
+      {/* Product Filter + Stats */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {productCategories.map(cat => (
+            <button
+              key={cat}
+              onClick={() => setProductFilter(cat)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition ${
+                productFilter === cat
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-200 hover:border-blue-300'
+              }`}
+              style={productFilter !== cat ? { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.surface } : {}}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-2xl border p-4 text-center" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <div className="text-2xl font-black" style={{ color: themeColors.text }}>{statsTotal}</div>
+            <div className="text-xs font-bold uppercase opacity-50" style={{ color: themeColors.text }}>Total Leads</div>
+          </div>
+          <div className="rounded-2xl border border-green-100 p-4 text-center" style={{ backgroundColor: themeColors.surface }}>
+            <div className="text-2xl font-black text-green-500">{statsCompleted}</div>
+            <div className="text-xs font-bold uppercase text-green-400">Completed</div>
+          </div>
+          <div className="rounded-2xl border border-orange-100 p-4 text-center" style={{ backgroundColor: themeColors.surface }}>
+            <div className="text-2xl font-black text-orange-500">{statsPending}</div>
+            <div className="text-xs font-bold uppercase text-orange-400">Pending</div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 justify-between">
@@ -318,6 +485,7 @@ export default function LeadManagement() {
                 <th className="p-4">Contact</th>
                 <th className="p-4">Product Interest</th>
                 <th className="p-4">Status</th>
+                <th className="p-4">Verified</th>
                 <th className="p-4">Ticket Status</th>
                 <th className="p-4">Location</th>
                 <th className="p-4">Date</th>
@@ -326,9 +494,9 @@ export default function LeadManagement() {
             </thead>
             <tbody className="divide-y text-sm" style={{ borderColor: themeColors.border }}>
               {loading ? (
-                <tr><td colSpan="8" className="p-8 text-center">Loading...</td></tr>
+                <tr><td colSpan="9" className="p-8 text-center">Loading...</td></tr>
               ) : filteredLeads.length === 0 ? (
-                <tr><td colSpan="8" className="p-8 text-center opacity-50">No leads found</td></tr>
+                <tr><td colSpan="9" className="p-8 text-center opacity-50">No leads found</td></tr>
               ) : (
                 filteredLeads.map(lead => {
                   const StatusIcon = getStatusIcon(lead.leadStatus);
@@ -365,6 +533,11 @@ export default function LeadManagement() {
                         </span>
                       </td>
                       <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 w-fit ${lead.verified ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-500'}`}>
+                          <FaCheckCircle size={10} />{lead.verified ? 'Verified' : 'Pending'}
+                        </span>
+                      </td>
+                      <td className="p-4">
                         {(() => {
                           const ticketStatus = getLeadTicketStatus(lead._id);
                           return ticketStatus ? (
@@ -388,30 +561,26 @@ export default function LeadManagement() {
                         {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('en-IN') : 'N/A'}
                       </td>
                       <td className="p-4">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 flex-wrap">
+                          <button onClick={() => showLeadDetails(lead)} className="p-2 hover:bg-green-50 rounded-lg text-green-600 transition" title="Show Lead Details"><FaEye size={14} /></button>
                           <button
-                            onClick={() => showLeadDetails(lead)}
-                            className="p-2 hover:bg-green-50 rounded-lg text-green-600 transition"
-                            title="Show Lead Details"
+                            onClick={() => handleVerify(lead)}
+                            className={`p-2 rounded-lg transition ${lead.verified ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100 text-gray-400'}`}
+                            title={lead.verified ? 'Verified - Click to unverify' : 'Click to verify'}
                           >
-                            <FaEye size={14} />
+                            <FaCheckCircle size={14} />
+                          </button>
+                          <button
+                            onClick={() => { setSelectedLeadForSchedule(lead); setScheduleData({ scheduledDate: lead.serviceSchedule?.scheduledDate ? new Date(lead.serviceSchedule.scheduledDate).toISOString().split('T')[0] : "", scheduleNote: lead.serviceSchedule?.scheduleNote || "" }); setIsScheduleModalOpen(true); }}
+                            className="p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition"
+                            title="Schedule Service"
+                          >
+                            <FaCalendarAlt size={14} />
                           </button>
                           {!getLeadTicketStatus(lead._id) && (
-                            <button
-                              onClick={() => openAssignModal(lead)}
-                              className="p-2 hover:bg-purple-50 rounded-lg text-purple-600 transition"
-                              title="Assign Ticket"
-                            >
-                              <FaTicketAlt size={14} />
-                            </button>
+                            <button onClick={() => openAssignModal(lead)} className="p-2 hover:bg-purple-50 rounded-lg text-purple-600 transition" title="Assign Ticket"><FaTicketAlt size={14} /></button>
                           )}
-                          <button
-                            onClick={() => handleDelete(lead._id)}
-                            className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition"
-                            title="Delete Lead"
-                          >
-                            <FaTrash size={14} />
-                          </button>
+                          <button onClick={() => handleDelete(lead._id)} className="p-2 hover:bg-red-50 rounded-lg text-red-600 transition" title="Delete Lead"><FaTrash size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -422,6 +591,53 @@ export default function LeadManagement() {
           </table>
         </div>
       </div>
+      </>
+      )}
+
+      {/* Schedule Service Modal */}
+      {isScheduleModalOpen && selectedLeadForSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="rounded-2xl shadow-2xl max-w-md w-full" style={{ backgroundColor: themeColors.surface }}>
+            <div className="p-6 border-b flex justify-between items-center" style={{ borderColor: themeColors.border }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center"><FaCalendarAlt /></div>
+                <h2 className="text-xl font-bold">Schedule Service</h2>
+              </div>
+              <button onClick={() => setIsScheduleModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg"><FaTimes /></button>
+            </div>
+            <form onSubmit={handleScheduleSubmit} className="p-6 space-y-4">
+              <div className="p-3 rounded-xl bg-blue-50 text-sm">
+                <span className="font-bold">{selectedLeadForSchedule.name}</span> — {selectedLeadForSchedule.phone}
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase opacity-60 mb-2">Service Date *</label>
+                <input
+                  type="date" required
+                  value={scheduleData.scheduledDate}
+                  onChange={(e) => setScheduleData({ ...scheduleData, scheduledDate: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border outline-none"
+                  style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase opacity-60 mb-2">Note (Optional)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Any special instructions..."
+                  value={scheduleData.scheduleNote}
+                  onChange={(e) => setScheduleData({ ...scheduleData, scheduleNote: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border outline-none resize-none"
+                  style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="px-5 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 font-bold">Cancel</button>
+                <button type="submit" className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold">Schedule</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {isAssignModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -748,6 +964,16 @@ export default function LeadManagement() {
                       <span className="font-medium opacity-70">Created:</span>
                       <span className="font-bold">{new Date(selectedLeadDetails.lead.createdAt).toLocaleDateString('en-IN')}</span>
                     </div>
+                    <div className="flex justify-between">
+                      <span className="font-medium opacity-70">Verified:</span>
+                      <span className={`font-bold ${selectedLeadDetails.lead.verified ? 'text-green-600' : 'text-gray-400'}`}>{selectedLeadDetails.lead.verified ? 'Yes ✓' : 'No'}</span>
+                    </div>
+                    {selectedLeadDetails.lead.serviceSchedule?.scheduledDate && (
+                      <div className="flex justify-between">
+                        <span className="font-medium opacity-70">Scheduled Date:</span>
+                        <span className="font-bold">{new Date(selectedLeadDetails.lead.serviceSchedule.scheduledDate).toLocaleDateString('en-IN')} ({selectedLeadDetails.lead.serviceSchedule.scheduleStatus})</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 

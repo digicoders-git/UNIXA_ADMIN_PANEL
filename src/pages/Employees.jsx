@@ -26,19 +26,20 @@ import {
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
 
+const defaultDesignation = (role) => role === "Manager" ? "Manager" : "Field Technician";
+
 const emptyForm = {
   name: "",
   email: "",
   phone: "",
   password: "",
   role: "Employee",
-  designation: "",
+  designation: "Field Technician",
   address: "",
   joiningDate: new Date().toISOString().split("T")[0],
   status: true,
   location: "",
   workingArea: "",
-  employeeId: "",
 };
 
 export default function Employees() {
@@ -115,16 +116,21 @@ export default function Employees() {
       location: emp.location || "",
       workingArea: emp.workingArea || "",
       employeeId: emp.employeeId || "",
+      designation: emp.designation || defaultDesignation(emp.role),
     });
     setIsModalOpen(true);
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
+      // Auto-update designation when role changes (only if not editing)
+      if (name === "role" && !editing) {
+        updated.designation = defaultDesignation(value);
+      }
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -149,8 +155,9 @@ export default function Employees() {
           setSaving(false);
           return;
         }
-        const plainPassword = form.password; // Store before sending
-        await createEmployee(form);
+        const plainPassword = form.password;
+        const response = await createEmployee(form);
+        const generatedId = response?.employee?.employeeId || "Auto-generated";
 
         // Show credentials to admin
         Swal.fire({
@@ -163,6 +170,8 @@ export default function Employees() {
                 <p style="margin: 8px 0;"><strong>Email:</strong> ${form.email}</p>
                 <p style="margin: 8px 0;"><strong>Password:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px; color: #dc2626; font-weight: bold;">${plainPassword}</code></p>
                 <p style="margin: 8px 0;"><strong>Role:</strong> ${form.role}</p>
+                <p style="margin: 8px 0;"><strong>Employee ID:</strong> <code style="background: #fff; padding: 4px 8px; border-radius: 4px; color: #2563eb; font-weight: bold;">${generatedId}</code></p>
+                <p style="margin: 8px 0;"><strong>Designation:</strong> ${form.designation}</p>
               </div>
               <p style="color: #dc2626; font-size: 14px;">⚠️ Please save these credentials and share with the employee securely.</p>
             </div>
@@ -333,6 +342,7 @@ export default function Employees() {
                     className="text-sm uppercase tracking-wider border-b"
                   >
                     <th className="p-4 font-semibold">Name / Designation</th>
+                    <th className="p-4 font-semibold">Employee ID</th>
                     <th className="p-4 font-semibold">Contact</th>
                     <th className="p-4 font-semibold">Role</th>
                     <th className="p-4 font-semibold">Status</th>
@@ -353,6 +363,11 @@ export default function Employees() {
                       <td className="p-4">
                         <div className="font-bold">{emp.name}</div>
                         <div className="text-xs opacity-60">{emp.designation || "-"}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className="px-2 py-1 rounded text-xs font-semibold bg-blue-50 text-blue-700">
+                          {emp.employeeId || "-"}
+                        </span>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-1 text-sm">
@@ -601,6 +616,7 @@ export default function Employees() {
                     name="designation"
                     value={form.designation}
                     onChange={handleChange}
+                    placeholder="Auto-filled based on role"
                     className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     style={{
                       backgroundColor: themeColors.background,
@@ -610,23 +626,38 @@ export default function Employees() {
                   />
                 </div>
 
-                {/* Employee ID */}
-                <div className="col-span-1">
-                  <label className="block text-sm font-medium mb-1">Employee ID</label>
-                  <input
-                    type="text"
-                    name="employeeId"
-                    value={form.employeeId}
-                    onChange={handleChange}
-                    placeholder="e.g., #EMP-001"
-                    className="w-full p-2 rounded border focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                  />
-                </div>
+                {/* Employee ID - Auto Generated */}
+                {editing && (
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium mb-1">Employee ID</label>
+                    <input
+                      type="text"
+                      value={form.employeeId || ""}
+                      readOnly
+                      className="w-full p-2 rounded border opacity-60 cursor-not-allowed"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    />
+                  </div>
+                )}
+                {!editing && (
+                  <div className="col-span-1">
+                    <label className="block text-sm font-medium mb-1">Employee ID</label>
+                    <div
+                      className="w-full p-2 rounded border opacity-60 text-sm"
+                      style={{
+                        backgroundColor: themeColors.background,
+                        borderColor: themeColors.border,
+                        color: themeColors.text,
+                      }}
+                    >
+                      Auto-generated ({form.role === "Manager" ? "MGR-XXX" : "EMP-XXX"})
+                    </div>
+                  </div>
+                )}
 
                 {/* Joining Date */}
                 <div className="col-span-1">
@@ -856,6 +887,24 @@ export default function Employees() {
                   <div className={`font-medium text-sm break-all ${showPassword ? "text-gray-700 dark:text-gray-300" : "text-gray-500 tracking-widest"}`}>
                     {showPassword ? (viewing.password || "No Password Set") : "••••••••"}
                   </div>
+                </div>
+
+                {/* Employee ID */}
+                <div className="p-3 rounded-lg border" style={{ borderColor: themeColors.border }}>
+                  <p className="text-xs opacity-60 mb-1">Employee ID</p>
+                  <div className="font-medium text-blue-600">{viewing.employeeId || "-"}</div>
+                </div>
+
+                {/* Location */}
+                <div className="p-3 rounded-lg border" style={{ borderColor: themeColors.border }}>
+                  <p className="text-xs opacity-60 mb-1">Location</p>
+                  <div className="font-medium">{viewing.location || "-"}</div>
+                </div>
+
+                {/* Working Area */}
+                <div className="p-3 rounded-lg border" style={{ borderColor: themeColors.border }}>
+                  <p className="text-xs opacity-60 mb-1">Working Area</p>
+                  <div className="font-medium">{viewing.workingArea || "-"}</div>
                 </div>
 
                 {/* Address - Full Width */}

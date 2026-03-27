@@ -79,23 +79,16 @@ const Login = () => {
       >
         {/* Branding Section */}
         <div className="text-center mb-4">
-          <div className="w-full h-40 mx-auto mb-2 flex items-center justify-center p-1">
+          <div className="w-full h-40 mx-auto mb- flex items-center justify-center p-2">
             <img
               src="/logo1.png"
               alt="Unixa Logo"
-              className="w-full h-full object-contain"
+              className="w-100px h-100px object-contain"
             />
           </div>
 
-          <h1
-            className="text-2xl font-bold mb-1"
-            style={{ color: themeColors.primary }}
-          >
-            Unixa
-          </h1>
-
           <p
-            className="text-xs"
+            className="text-xl"
             style={{ color: themeColors.textSecondary }}
           >
            Admin Panel

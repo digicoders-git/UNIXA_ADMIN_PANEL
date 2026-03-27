@@ -280,7 +280,7 @@ export default function ServiceRequests() {
                                               <FaUserCog /> {req.assignedTechnician}
                                           </div>
                                       ) : (
-                                          <span className="opacity-40 italic">Unassigned</span>
+                                          <span className="opacity-40 italic">Not Assign</span>
                                       )}
                                   </td>
                                   <td className="p-4 text-right">
@@ -292,12 +292,12 @@ export default function ServiceRequests() {
                                           >
                                               <FaSms />
                                           </button>
-                                          <button 
+                                          {/* <button 
                                               onClick={() => openUpdateModal(req)}
                                               className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
                                           >
                                               Update
-                                          </button>
+                                          </button> */}
                                           <button 
                                               onClick={() => handleDelete(req)}
                                               className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg text-xs font-bold transition flex items-center gap-1"

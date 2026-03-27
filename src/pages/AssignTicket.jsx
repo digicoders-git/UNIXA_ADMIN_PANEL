@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
+import { useLocation } from 'react-router-dom';
 import {
   FaTicketAlt,
   FaSearch,
@@ -44,7 +45,8 @@ export default function AssignTicket() {
     date: '',
     desc: '',
     serviceRequestId: '',
-    orderId: ''
+    orderId: '',
+    complaintId: ''
   });
 
   const [techSearch, setTechSearch] = useState("");
@@ -56,12 +58,35 @@ export default function AssignTicket() {
 
   const [serviceRequests, setServiceRequests] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [availableComplaints, setAvailableComplaints] = useState([]);
+  const [complaintSearch, setComplaintSearch] = useState("");
+  const [showComplaintDropdown, setShowComplaintDropdown] = useState(false);
+
+  const location = useLocation();
 
   useEffect(() => {
     fetchTickets();
     fetchEmployees();
     fetchServiceRequests();
     fetchOrders();
+    fetchAvailableComplaints();
+
+    // Auto-open form if navigated from Complaints page
+    if (location.state?.fromComplaint && location.state?.complaint) {
+      const c = location.state.complaint;
+      setFormData({
+        ticketType: 'complaint',
+        title: `${c.type} - ${c.customerName}`,
+        employee: '',
+        priority: c.priority || 'Medium',
+        date: '',
+        desc: c.description || '',
+        serviceRequestId: '',
+        orderId: '',
+        complaintId: c._id
+      });
+      setIsFormOpen(true);
+    }
   }, []);
 
   const fetchEmployees = async () => {
@@ -82,6 +107,15 @@ export default function AssignTicket() {
     } catch (error) {
       console.error('Error fetching service requests:', error);
       setServiceRequests([]);
+    }
+  };
+
+  const fetchAvailableComplaints = async () => {
+    try {
+      const { data } = await http.get('/api/admin/complaints/available');
+      setAvailableComplaints(data || []);
+    } catch (error) {
+      console.error('Error fetching complaints:', error);
     }
   };
 
@@ -148,7 +182,19 @@ export default function AssignTicket() {
       console.log('Form Data:', formData);
       console.log('Initial Ticket Data:', ticketData);
 
-      if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
+      if (formData.ticketType === 'complaint' && formData.complaintId) {
+        // Use complaintId directly from formData - don't depend on availableComplaints being loaded
+        ticketData.complaintId = formData.complaintId;
+        // Try to get extra details from availableComplaints if loaded
+        const selectedComp = availableComplaints.find(c => String(c._id) === String(formData.complaintId));
+        if (selectedComp) {
+          ticketData.userId = selectedComp.userId;
+          ticketData.customerName = selectedComp.customerName;
+          ticketData.customerPhone = selectedComp.customerPhone;
+          ticketData.customerEmail = selectedComp.customerEmail;
+          ticketData.address = selectedComp.address || 'N/A';
+        }
+      } else if (formData.ticketType === 'service_request' && formData.serviceRequestId) {
         const selectedRequest = serviceRequests.find(req => req._id === formData.serviceRequestId);
         console.log('Selected Service Request:', selectedRequest);
         if (selectedRequest) {
@@ -195,7 +241,8 @@ export default function AssignTicket() {
       await Promise.all([
         fetchTickets(),
         fetchServiceRequests(),
-        fetchOrders()
+        fetchOrders(),
+        fetchAvailableComplaints()
       ]);
       
       handleCloseForm();
@@ -248,7 +295,7 @@ export default function AssignTicket() {
 
   const handleCloseForm = () => {
     setEditingTicket(null);
-    setFormData({ ticketType: 'service_request', title: '', employee: '', priority: 'Medium', date: '', desc: '', serviceRequestId: '', orderId: '' });
+    setFormData({ ticketType: 'service_request', title: '', employee: '', priority: 'Medium', date: '', desc: '', serviceRequestId: '', orderId: '', complaintId: '' });
     setIsFormOpen(false);
   };
 
@@ -359,11 +406,13 @@ export default function AssignTicket() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        ticket.ticketType === 'service_request' 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-cyan-100 text-cyan-700'
+                        ticket.ticketType === 'service_request' ? 'bg-purple-100 text-purple-700' 
+                        : ticket.ticketType === 'complaint' ? 'bg-orange-100 text-orange-700'
+                        : 'bg-cyan-100 text-cyan-700'
                       }`}>
-                        {ticket.ticketType === 'service_request' ? 'AMC Service' : 'Installation'}
+                        {ticket.ticketType === 'service_request' ? 'AMC Service' 
+                          : ticket.ticketType === 'complaint' ? 'Complaint'
+                          : 'Installation'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -493,7 +542,7 @@ export default function AssignTicket() {
                 </label>
                 <select
                   value={formData.ticketType}
-                  onChange={(e) => setFormData({ ...formData, ticketType: e.target.value, serviceRequestId: '', orderId: '' })}
+                  onChange={(e) => setFormData({ ...formData, ticketType: e.target.value, serviceRequestId: '', orderId: '', complaintId: '' })}
                   className="w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-blue-500"
                   style={{
                     backgroundColor: themeColors.background,
@@ -503,6 +552,7 @@ export default function AssignTicket() {
                 >
                   <option value="service_request">Service Request (AMC)</option>
                   <option value="order">Order Installation</option>
+                  <option value="complaint">Complaint</option>
                 </select>
               </div>
 
@@ -572,6 +622,45 @@ export default function AssignTicket() {
                       </div>
                     )}
                     {showSrDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowSrDropdown(false)}></div>}
+                  </div>
+                </div>
+              )}
+
+              {formData.ticketType === 'complaint' && (
+                <div className="relative">
+                  <label className="block text-xs font-bold uppercase opacity-60 mb-2" style={{ color: themeColors.text }}>
+                    Select Complaint ({availableComplaints.length} open)
+                  </label>
+                  <div className="relative">
+                    <input type="text" readOnly placeholder="Choose complaint"
+                      className="w-full px-4 py-3 rounded-xl border outline-none cursor-pointer"
+                      style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+                      onClick={() => setShowComplaintDropdown(!showComplaintDropdown)}
+                      value={formData.complaintId ? (availableComplaints.find(c => c._id === formData.complaintId) ? `${availableComplaints.find(c => c._id === formData.complaintId).complaintId} - ${availableComplaints.find(c => c._id === formData.complaintId).customerName}` : formData.complaintId) : ''}
+                    />
+                    {showComplaintDropdown && (
+                      <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                        <input type="text" placeholder="Search..." autoFocus value={complaintSearch}
+                          onChange={e => setComplaintSearch(e.target.value)}
+                          className="w-full p-2 mb-2 rounded-lg border text-sm outline-none"
+                          style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }} />
+                        <div className="max-h-40 overflow-y-auto space-y-1">
+                          {availableComplaints.filter(c =>
+                            `${c.complaintId} ${c.customerName} ${c.type}`.toLowerCase().includes(complaintSearch.toLowerCase())
+                          ).map(c => (
+                            <div key={c._id} className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm transition-colors"
+                              onClick={() => { setFormData({ ...formData, complaintId: c._id, title: `${c.type} - ${c.customerName}`, desc: c.description || '', priority: c.priority || 'Medium' }); setShowComplaintDropdown(false); setComplaintSearch(''); }}>
+                              <div className="font-bold">{c.complaintId} - {c.customerName}</div>
+                              <div className="text-[10px] opacity-60 uppercase">{c.type} · {c.priority}</div>
+                            </div>
+                          ))}
+                          {availableComplaints.filter(c => `${c.complaintId} ${c.customerName} ${c.type}`.toLowerCase().includes(complaintSearch.toLowerCase())).length === 0 && (
+                            <div className="p-3 text-center text-xs opacity-50">No open complaints found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {showComplaintDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowComplaintDropdown(false)}></div>}
                   </div>
                 </div>
               )}

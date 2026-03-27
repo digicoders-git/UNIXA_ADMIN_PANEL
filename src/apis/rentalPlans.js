@@ -5,6 +5,16 @@ export const getRentalPlans = async () => {
   return data.plans;
 };
 
+export const getRentalTracking = async (params = {}) => {
+  const { data } = await http.get("/api/rental-tracking", { params });
+  return data;
+};
+
+export const updateRentalTracking = async (id, body) => {
+  const { data } = await http.put(`/api/rental-tracking/${id}`, body);
+  return data;
+};
+
 export const getRentalPlan = async (id) => {
   const { data } = await http.get(`/api/rental-plans/${id}`);
   return data.plan;

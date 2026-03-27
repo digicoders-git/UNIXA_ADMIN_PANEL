@@ -13,6 +13,7 @@ import {
 import { listOffers } from "../apis/offers";
 import { getImageUrl } from "../apis/http";
 import { listAmcPlans } from "../apis/amcPlans";
+import { listBrands } from "../apis/brands";
 import {
   FaBoxOpen,
   FaPlus,
@@ -98,6 +99,8 @@ export default function Products() {
     material: "",
     installation: "",
     warranty: "",
+    warrantyYears: 0,
+    mandatoryServices: 0,
     frameType: "",
     dimensions: "",
     glassType: "",
@@ -116,6 +119,9 @@ export default function Products() {
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [offerSearch, setOfferSearch] = useState("");
   const [showOfferDropdown, setShowOfferDropdown] = useState(false);
+  const [allBrands, setAllBrands] = useState([]);
+  const [brandSearch, setBrandSearch] = useState("");
+  const [showBrandDropdown, setShowBrandDropdown] = useState(false);
 
   // ---------- fetchers ----------
   const fetchCategories = async () => {
@@ -163,11 +169,21 @@ export default function Products() {
     }
   };
 
-  useEffect(() => {
+  const fetchBrands = async () => {
+    try {
+      const list = await listBrands();
+      setAllBrands((list || []).filter(b => b.isActive));
+    } catch (e) {
+      console.error("Failed to load brands", e);
+    }
+  };
+
+useEffect(() => {
     fetchCategories();
     fetchOffers();
     fetchProducts();
     fetchAmcPlans();
+    fetchBrands();
   }, []);
 
   // categoryId -> name map
@@ -205,6 +221,8 @@ export default function Products() {
       material: "",
       installation: "",
       warranty: "",
+      warrantyYears: 0,
+      mandatoryServices: 0,
       frameType: "",
       dimensions: "",
       glassType: "",
@@ -219,12 +237,16 @@ export default function Products() {
     setIsModalOpen(true);
   };
 
+  const generatePId = (name) =>
+    name.trim().toLowerCase().replace(/[^a-z0-9]/g, "") + Date.now().toString().slice(-4);
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
+    setForm((prev) => {
+      const updated = { ...prev, [name]: type === "checkbox" ? checked : value };
+      if (name === "name" && !editing) updated.p_id = generatePId(value);
+      return updated;
+    });
     setError("");
     setSuccess("");
   };
@@ -405,6 +427,8 @@ export default function Products() {
         material: prod.specifications.material || "",
         installation: prod.specifications.installation || "",
         warranty: prod.specifications.warranty || "",
+        warrantyYears: prod.specifications.warrantyYears || 0,
+        mandatoryServices: prod.specifications.mandatoryServices || 0,
         frameType: prod.specifications.frameType || "",
         dimensions: prod.specifications.dimensions || "",
         glassType: prod.specifications.glassType || "",
@@ -416,6 +440,8 @@ export default function Products() {
         material: "",
         installation: "",
         warranty: "",
+        warrantyYears: 0,
+        mandatoryServices: 0,
         frameType: "",
         dimensions: "",
         glassType: "",
@@ -486,11 +512,19 @@ export default function Products() {
     const cleanSpecs = {};
     let hasSpecs = false;
     Object.keys(specs).forEach((key) => {
-      if (specs[key].trim()) {
-        cleanSpecs[key] = specs[key].trim();
+      const val = specs[key];
+      if (key === 'warrantyYears' || key === 'mandatoryServices') {
+        cleanSpecs[key] = Number(val) || 0;
+        hasSpecs = true;
+      } else if (String(val).trim()) {
+        cleanSpecs[key] = String(val).trim();
         hasSpecs = true;
       }
     });
+    // Auto-set warranty string from warrantyYears
+    if (specs.warrantyYears > 0) {
+      cleanSpecs.warranty = `${specs.warrantyYears} Year${specs.warrantyYears > 1 ? 's' : ''}`;
+    }
     if (hasSpecs) {
       fd.append("specifications", JSON.stringify(cleanSpecs));
     }
@@ -605,6 +639,17 @@ export default function Products() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleToggleWebsite = async (prod) => {
+    const idOrSlug = prod.slug || prod._id || prod.id;
+    const newVal = prod.showOnWebsite === false ? true : false;
+    try {
+      await updateProduct(idOrSlug, { showOnWebsite: newVal });
+      setProducts(prev => prev.map(p =>
+        (p._id || p.id) === (prod._id || prod.id) ? { ...p, showOnWebsite: newVal } : p
+      ));
+    } catch { Swal.fire("Error", "Failed to update", "error"); }
   };
 
   // NEW: Active/Inactive toggle handler
@@ -1016,11 +1061,13 @@ export default function Products() {
                   >
                     {[
                       "Product",
+                      "ID",
                       "Category",
                       "Pricing",
                       "Status",
+                      "Website",
                       "Stock / Date",
-                      "AMC Plans",
+                      "Warranty",
                       "Actions",
                     ].map((h) => (
                       <th
@@ -1091,6 +1138,9 @@ export default function Products() {
                             </div>
                           </td>
                           <td className="px-4 py-4">
+                            <span className="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold font-mono">{p.p_id || "-"}</span>
+                          </td>
+                          <td className="px-4 py-4">
                             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100" style={{ color: themeColors.text }}>
                               {catName}
                             </span>
@@ -1120,28 +1170,35 @@ export default function Products() {
                             </button>
                           </td>
                           <td className="px-4 py-4">
+                            <button
+                              onClick={() => handleToggleWebsite(p)}
+                              title={p.showOnWebsite !== false ? "Hide from website" : "Show on website"}
+                              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                                p.showOnWebsite !== false
+                                  ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                  : "bg-orange-100 text-orange-600 hover:bg-orange-200"
+                              }`}
+                            >
+                              {p.showOnWebsite !== false ? "Visible" : "Hidden"}
+                            </button>
+                          </td>
+                          <td className="px-4 py-4">
                              <div className="text-xs font-bold" style={{ color: themeColors.text }}>
                                 {p.createdAt ? fmtDate(p.createdAt) : "-"}
                              </div>
                              <div className="text-[10px] opacity-50 uppercase tracking-tighter">Listed Date</div>
                           </td>
                           <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-[150px]">
-                              {p.amcPlans?.length > 0 ? (
-                                p.amcPlans.map((planId, idx) => {
-                                    // backend populations se object aa sakta hai, ya fir local lookup
-                                    const planObj = (typeof planId === "object" && planId.name) ? planId : null;
-                                    const plan = planObj || allAmcPlans.find(ap => String(ap._id) === String(planId._id || planId));
-
-                                    return (
-                                      <span key={idx} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-bold rounded border border-blue-100 flex items-center gap-1">
-                                         <FaShieldAlt size={8} />
-                                         {plan?.name || "Plan"}
-                                      </span>
-                                    );
-                                })
+                            <div className="flex flex-col gap-1">
+                              {p.specifications?.warrantyYears > 0 ? (
+                                <>
+                                  <span className="px-2 py-1 rounded-full bg-blue-50 text-blue-700 text-[10px] font-bold w-fit">
+                                    {p.specifications.warrantyYears} Year{p.specifications.warrantyYears > 1 ? "s" : ""}
+                                  </span>
+                                  <span className="text-[10px] opacity-50">{p.specifications.mandatoryServices} service{p.specifications.mandatoryServices > 1 ? "s" : ""}</span>
+                                </>
                               ) : (
-                                <span className="text-[10px] text-slate-300 italic">None</span>
+                                <span className="text-[10px] text-slate-300 italic">No Warranty</span>
                               )}
                             </div>
                           </td>
@@ -1530,34 +1587,8 @@ export default function Products() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Product ID (P ID) */}
-                 <div>
-                  <label
-                    htmlFor="p_id"
-                    className="block mb-1 text-sm font-medium"
-                    style={{ color: themeColors.text }}
-                  >
-                    Product ID (P ID) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="p_id"
-                    name="p_id"
-                    type="text"
-                    value={form.p_id}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      borderColor: themeColors.border,
-                      color: themeColors.text,
-                    }}
-                    placeholder="e.g. RO-7001"
-                  />
-                </div>
-
                 {/* Name */}
-                <div>
+                <div className="md:col-span-2">
                   <label
                     htmlFor="name"
                     className="block mb-1 text-sm font-medium"
@@ -1654,6 +1685,7 @@ export default function Products() {
                   </label>
                   <input
                     id="price"
+                    
                     name="price"
                     type="number"
                     min="0"
@@ -1839,47 +1871,6 @@ export default function Products() {
                   )}
                 </div>
 
-                {/* AMC Plans */}
-                <div className="md:col-span-2">
-                  <label className="block mb-2 text-sm font-medium" style={{ color: themeColors.text }}>
-                    Applicable AMC Plans
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {allAmcPlans
-                      .filter(plan => plan.isActive || form.amcPlans.includes(plan._id))
-                      .map((plan) => (
-                      <div
-                        key={plan._id}
-                        onClick={() => toggleAmcPlan(plan._id)}
-                        className={`flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all ${
-                          form.amcPlans.includes(plan._id)
-                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                            : "border-gray-200"
-                        } ${!plan.isActive ? "opacity-50 grayscale-[0.5]" : ""}`}
-                        style={{
-                          borderColor: form.amcPlans.includes(plan._id) ? "#3b82f6" : themeColors.border,
-                          backgroundColor: form.amcPlans.includes(plan._id) ? "#3b82f610" : "transparent"
-                        }}
-                      >
-                        <div className="flex flex-col">
-                          <span className="text-sm font-semibold flex items-center gap-2">
-                             {plan.name}
-                             {!plan.isActive && <span className="text-[8px] bg-red-100 text-red-600 px-1 rounded">Inactive</span>}
-                          </span>
-                          <span className="text-xs opacity-60">₹{plan.price} / {plan.durationMonths}m</span>
-                        </div>
-                        {form.amcPlans.includes(plan._id) ? (
-                          <FaCheck className="text-blue-500 text-xs" />
-                        ) : (
-                          <div className="w-4 h-4 rounded-full border border-gray-300" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  {allAmcPlans.length === 0 && (
-                     <p className="text-xs opacity-50 italic">No AMC plans found. Please create them in the Master AMC section.</p>
-                  )}
-                </div>
 
                 {/* Description */}
                 <div className="md:col-span-2">
@@ -2143,7 +2134,7 @@ export default function Products() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Brand */}
-                    <div>
+                    <div className="relative">
                       <label
                         className="block mb-1 text-xs font-medium"
                         style={{ color: themeColors.text }}
@@ -2152,17 +2143,41 @@ export default function Products() {
                       </label>
                       <input
                         type="text"
-                        name="brand"
+                        readOnly
+                        placeholder="Select Brand"
+                        className="w-full px-2 py-1.5 rounded border text-sm cursor-pointer outline-none focus:ring-2"
+                        style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }}
+                        onClick={() => setShowBrandDropdown(!showBrandDropdown)}
                         value={specs.brand}
-                        onChange={handleSpecChange}
-                        className="w-full px-2 py-1.5 rounded border text-sm"
-                        style={{
-                          backgroundColor: themeColors.surface,
-                          borderColor: themeColors.border,
-                          color: themeColors.text,
-                        }}
-                        placeholder="e.g. Aqua Fresh / Kent / Livpure"
                       />
+                      {showBrandDropdown && (
+                        <div className="absolute z-[1000] w-full mt-1 rounded-xl shadow-2xl border p-3" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                          <div className="relative mb-2">
+                            <FaSearch className="absolute left-3 top-2.5 opacity-40 text-xs" />
+                            <input type="text" placeholder="Search brand..." autoFocus
+                              className="w-full pl-8 p-1.5 rounded-lg border text-xs outline-none"
+                              style={{ backgroundColor: themeColors.background, color: themeColors.text, borderColor: themeColors.border }}
+                              value={brandSearch} onChange={e => setBrandSearch(e.target.value)}
+                            />
+                          </div>
+                          <div className="max-h-40 overflow-y-auto space-y-1">
+                            <div className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-xs text-slate-400 italic"
+                              onClick={() => { setSpecs(p => ({ ...p, brand: '' })); setShowBrandDropdown(false); setBrandSearch(''); }}>
+                              None
+                            </div>
+                            {allBrands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).map(b => (
+                              <div key={b._id} className="p-2 hover:bg-black/5 cursor-pointer rounded-lg text-sm"
+                                onClick={() => { setSpecs(p => ({ ...p, brand: b.name })); setShowBrandDropdown(false); setBrandSearch(''); }}>
+                                <span className="font-medium">{b.name}</span>
+                              </div>
+                            ))}
+                            {allBrands.filter(b => b.name.toLowerCase().includes(brandSearch.toLowerCase())).length === 0 && (
+                              <div className="p-2 text-center text-xs opacity-50">No brands found</div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {showBrandDropdown && <div className="fixed inset-0 z-[999]" onClick={() => setShowBrandDropdown(false)} />}
                     </div>
                     {/* Weight */}
                     <div>
@@ -2231,26 +2246,50 @@ export default function Products() {
                       />
                     </div>
                     {/* Warranty */}
-                    <div>
-                      <label
-                        className="block mb-1 text-xs font-medium"
-                        style={{ color: themeColors.text }}
-                      >
-                        Warranty
+                    <div className="md:col-span-2">
+                      <label className="block mb-2 text-sm font-semibold" style={{ color: themeColors.text }}>
+                        Warranty Period
                       </label>
-                      <input
-                        type="text"
-                        name="warranty"
-                        value={specs.warranty}
-                        onChange={handleSpecChange}
-                        className="w-full px-2 py-1.5 rounded border text-sm"
-                        style={{
-                          backgroundColor: themeColors.surface,
-                          borderColor: themeColors.border,
-                          color: themeColors.text,
-                        }}
-                        placeholder="e.g. 1 Year Comprehensive + 5 Years on Membrane"
-                      />
+                      <div className="flex gap-2 mb-3">
+                        {[0, 1, 2, 3].map((yr) => (
+                          <button
+                            key={yr}
+                            type="button"
+                            onClick={() => setSpecs(prev => ({ ...prev, warrantyYears: yr, mandatoryServices: yr }))}
+                            className={`flex-1 py-2.5 rounded-lg border text-sm font-bold transition-all ${
+                              specs.warrantyYears === yr ? "bg-blue-600 text-white border-blue-600" : ""
+                            }`}
+                            style={specs.warrantyYears !== yr ? { borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.surface } : {}}
+                          >
+                            {yr === 0 ? "No Warranty" : `${yr} Year${yr > 1 ? "s" : ""}`}
+                          </button>
+                        ))}
+                      </div>
+                      {specs.warrantyYears > 0 && (() => {
+                        const scheduleMap = { 1: [6], 2: [4, 8], 3: [3, 6, 9] };
+                        const schedule = scheduleMap[specs.warrantyYears];
+                        return (
+                          <div className="rounded-xl overflow-hidden border" style={{ borderColor: themeColors.border }}>
+                            <div className="px-4 py-2.5 bg-blue-600 text-white text-xs font-bold flex items-center gap-2">
+                              <span>📅</span>
+                              <span>{specs.warrantyYears} Year Warranty — {schedule.length} Mandatory Service{schedule.length > 1 ? "s" : ""}</span>
+                            </div>
+                            {schedule.map((month, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between px-4 py-3"
+                                style={{ borderTop: i > 0 ? `1px solid ${themeColors.border}` : "none", backgroundColor: themeColors.background }}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0">{i + 1}</span>
+                                  <span className="text-sm font-medium" style={{ color: themeColors.text }}>Service {i + 1}</span>
+                                </div>
+                                <span className="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold">Month {month}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {/* Frame Type */}
                     <div>

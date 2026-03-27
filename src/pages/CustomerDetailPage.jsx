@@ -543,8 +543,12 @@ export default function CustomerDetailPage() {
               <div>
                 <p className="opacity-60 text-xs">Address</p>
                 <p className="font-semibold">
-                  {customer.address?.house} {customer.address?.area}{" "}
-                  {customer.address?.city} - {customer.address?.pincode}
+                  {[
+                    customer.address?.house,
+                    customer.address?.area,
+                    customer.address?.city,
+                    customer.address?.pincode
+                  ].filter(Boolean).join(", ") || "Address not available"}
                 </p>
               </div>
             </div>

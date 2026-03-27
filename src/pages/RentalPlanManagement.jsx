@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getRentalPlans, createRentalPlan, updateRentalPlan, deleteRentalPlan } from "../apis/rentalPlans";
 import { listAmcPlans } from "../apis/amcPlans";
 import { listProducts } from "../apis/products";
-import { FaEdit, FaTrash, FaPlus, FaImage, FaCheck, FaTimes } from "react-icons/fa";
+import { FaEdit, FaTrash, FaPlus, FaImage, FaCheck, FaTimes, FaTable, FaTh } from "react-icons/fa";
 import { getImageUrl } from "../apis/http";
 import Swal from "sweetalert2";
 
@@ -14,6 +14,9 @@ export default function RentalPlanManagement() {
   const [selectedPlanId, setSelectedPlanId] = useState(null);
   const [allAmcPlans, setAllAmcPlans] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
+  const [viewMode, setViewMode] = useState("table"); // 'table' | 'grid'
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
 
   // Form State
   const [formData, setFormData] = useState({
@@ -22,7 +25,11 @@ export default function RentalPlanManagement() {
     tag: "",
     installationCost: "Free",
     deposit: "None",
-    features: "", // We'll handle this as newline separated string for input simplicity
+    securityMoney: "None",
+    discount: "",
+    freeUses: "",
+    freeParts: "",
+    features: "",
     image: null, 
     isActive: true,
     amcPlans: [],
@@ -78,6 +85,10 @@ export default function RentalPlanManagement() {
       tag: "",
       installationCost: "Free",
       deposit: "None",
+      securityMoney: "None",
+      discount: "",
+      freeUses: "",
+      freeParts: "",
       features: "",
       image: null,
       isActive: true,
@@ -98,8 +109,12 @@ export default function RentalPlanManagement() {
       tag: plan.tag || "",
       installationCost: plan.installationCost || "Free",
       deposit: plan.deposit || "None",
+      securityMoney: plan.securityMoney || "None",
+      discount: plan.discount || "",
+      freeUses: plan.freeUses ? plan.freeUses.join("\n") : "",
+      freeParts: plan.freeParts ? plan.freeParts.join("\n") : "",
       features: plan.features ? plan.features.join("\n") : "",
-      image: null, // Keep null unless changing
+      image: null,
       isActive: plan.isActive,
       amcPlans: Array.isArray(plan.amcPlans) ? plan.amcPlans.map(a => a._id || a) : [],
       productId: plan.productId?._id || plan.productId || "",
@@ -128,6 +143,19 @@ export default function RentalPlanManagement() {
     });
   };
 
+  // Auto-calculate total amount
+  const calcTotal = (data) => {
+    const rent = parseFloat(data.price) || 0;
+    const disc = parseFloat(data.discount) || 0;
+    const security = parseFloat(data.securityMoney) || 0;
+    const installation = data.installationCost === "Free" ? 0 : (parseFloat(data.installationCost) || 0);
+    const discountAmount = Math.round((rent + installation + security) * disc / 100);
+    const total = Math.round(rent + installation + security - discountAmount);
+    return { rent, installation, security, discountAmount, disc, total };
+  };
+
+  const calc = calcTotal(formData);
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -146,11 +174,18 @@ export default function RentalPlanManagement() {
     submissionData.append("tag", formData.tag);
     submissionData.append("installationCost", formData.installationCost);
     submissionData.append("deposit", formData.deposit);
+    submissionData.append("securityMoney", formData.securityMoney);
+    submissionData.append("discount", formData.discount || 0);
     submissionData.append("isActive", formData.isActive);
 
-    // Convert newline features specific string back to JSON string array for backend processing
     const featuresArray = formData.features.split("\n").filter(f => f.trim() !== "");
     submissionData.append("features", JSON.stringify(featuresArray));
+
+    const freeUsesArray = formData.freeUses.split("\n").filter(f => f.trim() !== "");
+    submissionData.append("freeUses", JSON.stringify(freeUsesArray));
+
+    const freePartsArray = formData.freeParts.split("\n").filter(f => f.trim() !== "");
+    submissionData.append("freeParts", JSON.stringify(freePartsArray));
 
     if (formData.amcPlans && formData.amcPlans.length) {
       submissionData.append("amcPlans", JSON.stringify(formData.amcPlans));
@@ -179,6 +214,16 @@ export default function RentalPlanManagement() {
     }
   };
 
+  const handleToggleWebsite = async (plan) => {
+    const newVal = plan.showOnWebsite === false ? true : false;
+    try {
+      const fd = new FormData();
+      fd.append("showOnWebsite", String(newVal));
+      await updateRentalPlan(plan._id, fd);
+      setPlans(prev => prev.map(p => p._id === plan._id ? { ...p, showOnWebsite: newVal } : p));
+    } catch { Swal.fire("Error", "Failed to update", "error"); }
+  };
+
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "Are you sure?",
@@ -201,16 +246,53 @@ export default function RentalPlanManagement() {
     }
   };
 
+  // Calculate total for saved plan card
+  const getPlanTotal = (plan) => {
+    const rent = plan.price || 0;
+    const disc = plan.discount || 0;
+    const security = parseFloat(plan.securityMoney) || 0;
+    const installation = plan.installationCost === "Free" ? 0 : (parseFloat(plan.installationCost) || 0);
+    const discountAmount = Math.round((rent + installation + security) * disc / 100);
+    return {
+      discountAmount,
+      total: Math.round(rent + installation + security - discountAmount),
+    };
+  };
+
+  const totalPages = Math.ceil(plans.length / PAGE_SIZE);
+  const paginated = plans.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Rental Plans Management</h1>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-        >
-          <FaPlus /> Add New Plan
-        </button>
+        <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode("table")}
+              className={`px-3 py-2 text-sm flex items-center gap-1.5 transition ${
+                viewMode === "table" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              <FaTable size={13} /> Table
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`px-3 py-2 text-sm flex items-center gap-1.5 transition ${
+                viewMode === "grid" ? "bg-blue-600 text-white" : "bg-white text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              <FaTh size={13} /> Grid
+            </button>
+          </div>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+          >
+            <FaPlus /> Add New Plan
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -222,20 +304,130 @@ export default function RentalPlanManagement() {
           </div>
           <h3 className="text-lg font-bold text-gray-700 mb-1">No Rental Plans Yet</h3>
           <p className="text-sm text-gray-400 mb-4">Click "Add New Plan" to create your first rental plan.</p>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-          >
+          <button onClick={openCreateModal} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
             <FaPlus /> Add New Plan
           </button>
         </div>
+      ) : viewMode === "table" ? (
+        <>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left">#</th>
+                    <th className="px-4 py-3 text-left">Plan</th>
+                    <th className="px-4 py-3 text-right">Monthly Rent</th>
+                    <th className="px-4 py-3 text-right">Installation</th>
+                    <th className="px-4 py-3 text-right">Security</th>
+                    <th className="px-4 py-3 text-right">Discount</th>
+                    <th className="px-4 py-3 text-right font-bold text-blue-600">Total Amount</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">Website</th>
+                    <th className="px-4 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginated.map((plan, idx) => {
+                    const { total, discountAmount } = getPlanTotal(plan);
+                    return (
+                      <tr key={plan._id} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 text-gray-400">{(currentPage - 1) * PAGE_SIZE + idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <img src={getImageUrl(plan.image?.url)} alt={plan.planName} className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                            <div>
+                              <p className="font-semibold text-gray-800">{plan.planName}</p>
+                              {plan.tag && <span className="text-[10px] bg-yellow-100 text-yellow-700 font-bold px-1.5 py-0.5 rounded uppercase">{plan.tag}</span>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700">₹{plan.price}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{plan.installationCost === "Free" ? <span className="text-green-600 font-medium">Free</span> : `₹${plan.installationCost}`}</td>
+                        <td className="px-4 py-3 text-right text-gray-700">{parseFloat(plan.securityMoney) > 0 ? `₹${plan.securityMoney}` : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right">
+                          {plan.discount > 0
+                            ? <span className="text-green-600 font-semibold">{plan.discount}% <span className="text-xs text-gray-400">(-₹{discountAmount})</span></span>
+                            : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="font-black text-blue-700 text-base">₹{total}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${plan.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {plan.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleToggleWebsite(plan)}
+                            className={`px-2 py-1 rounded text-xs font-bold transition-all ${
+                              plan.showOnWebsite !== false
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                : "bg-orange-100 text-orange-600 hover:bg-orange-200"
+                            }`}
+                          >
+                            {plan.showOnWebsite !== false ? "Visible" : "Hidden"}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button onClick={() => openEditModal(plan)} className="p-1.5 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition"><FaEdit size={13} /></button>
+                            <button onClick={() => handleDelete(plan._id)} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-100 transition"><FaTrash size={13} /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-gray-500">Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, plans.length)} of {plans.length} plans</p>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-100 transition"
+                >Prev</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setCurrentPage(p)}
+                    className={`px-3 py-1.5 text-sm rounded-lg transition ${
+                      p === currentPage ? "bg-blue-600 text-white font-bold" : "border border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >{p}</button>
+                ))}
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-100 transition"
+                >Next</button>
+              </div>
+            </div>
+          )}
+        </>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {plans.map((plan) => (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginated.map((plan) => (
             <div key={plan._id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative group">
               {/* Status Badge */}
                <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold ${plan.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                   {plan.isActive ? "Active" : "Inactive"}
+               </div>
+               <div
+                 onClick={() => handleToggleWebsite(plan)}
+                 className={`absolute top-8 right-2 mt-1 px-2 py-1 rounded text-xs font-bold cursor-pointer transition-all ${
+                   plan.showOnWebsite !== false ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-600"
+                 }`}
+               >
+                 {plan.showOnWebsite !== false ? "Visible" : "Hidden"}
                </div>
 
               {/* Tag Badge */}
@@ -255,13 +447,35 @@ export default function RentalPlanManagement() {
 
               <div className="p-5">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">{plan.planName}</h3>
-                <div className="text-2xl font-black text-blue-600 mb-4">₹{plan.price}<span className="text-sm text-gray-400 font-normal">/mo</span></div>
+                <div className="flex items-end gap-2 mb-1">
+                  <span className="text-2xl font-black text-blue-600">₹{plan.price}<span className="text-sm text-gray-400 font-normal">/mo</span></span>
+                  {plan.discount > 0 && (
+                    <span className="text-xs bg-green-100 text-green-700 font-bold px-1.5 py-0.5 rounded">{plan.discount}% OFF</span>
+                  )}
+                </div>
+                {/* Total Amount */}
+                <div className="bg-blue-50 rounded-lg px-3 py-2 mb-4 flex justify-between items-center">
+                  <span className="text-xs text-blue-500 font-medium">Total Amount</span>
+                  <span className="text-sm font-black text-blue-700">₹{getPlanTotal(plan).total}</span>
+                </div>
                 
                 <div className="space-y-2 mb-4">
                    <div className="flex justify-between text-sm text-gray-600 border-b border-gray-50 pb-1">
                       <span>Deposit</span>
                       <span className="font-semibold">{plan.deposit}</span>
                    </div>
+                   {plan.securityMoney && plan.securityMoney !== "None" && (
+                   <div className="flex justify-between text-sm text-gray-600 border-b border-gray-50 pb-1">
+                      <span>Security</span>
+                      <span className="font-semibold">{plan.securityMoney}</span>
+                   </div>
+                   )}
+                   {plan.discount > 0 && (
+                   <div className="flex justify-between text-sm text-green-600 border-b border-gray-50 pb-1">
+                      <span>Discount</span>
+                      <span className="font-semibold">{plan.discount}% OFF</span>
+                   </div>
+                   )}
                    <div className="flex justify-between text-sm text-gray-600 border-b border-gray-50 pb-1">
                       <span>Installation</span>
                       <span className="font-semibold">{plan.installationCost}</span>
@@ -306,6 +520,21 @@ export default function RentalPlanManagement() {
             </div>
           ))}
         </div>
+
+          {/* Grid Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-gray-500">Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, plans.length)} of {plans.length} plans</p>
+              <div className="flex gap-1">
+                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-100 transition">Prev</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <button key={p} onClick={() => setCurrentPage(p)} className={`px-3 py-1.5 text-sm rounded-lg transition ${p === currentPage ? "bg-blue-600 text-white font-bold" : "border border-gray-200 hover:bg-gray-100"}`}>{p}</button>
+                ))}
+                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg disabled:opacity-40 hover:bg-gray-100 transition">Next</button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* Modal */}
@@ -412,6 +641,32 @@ export default function RentalPlanManagement() {
                         />
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Security Money</label>
+                        <input
+                        type="text"
+                        name="securityMoney"
+                        value={formData.securityMoney}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. ₹2000"
+                        />
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Discount (%)</label>
+                        <input
+                        type="number"
+                        name="discount"
+                        value={formData.discount}
+                        onChange={handleInputChange}
+                        min="0"
+                        max="100"
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="e.g. 10"
+                        />
+                    </div>
+
                      <div className="flex items-center gap-2 pt-6">
                         <input
                         type="checkbox"
@@ -426,7 +681,42 @@ export default function RentalPlanManagement() {
                  </div>
               </div>
 
-              {/* Features - Text Area for simplicity */}
+              {/* Total Amount Summary */}
+              {(formData.price || formData.securityMoney || formData.installationCost !== "Free") && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3">💰 Auto Calculated Summary</p>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Monthly Rent</span>
+                    <span>₹{calc.rent}</span>
+                  </div>
+                  {calc.installation > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Installation Cost</span>
+                    <span>₹{calc.installation}</span>
+                  </div>
+                  )}
+                  {calc.security > 0 && (
+                  <div className="flex justify-between text-gray-600">
+                    <span>Security Money</span>
+                    <span>₹{calc.security}</span>
+                  </div>
+                  )}
+                  {calc.discountAmount > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount ({calc.disc}%)</span>
+                    <span>- ₹{calc.discountAmount}</span>
+                  </div>
+                  )}
+                  <div className="flex justify-between font-black text-blue-700 text-base border-t border-blue-200 pt-2 mt-2">
+                    <span>Total Amount</span>
+                    <span>₹{calc.total}</span>
+                  </div>
+                </div>
+              </div>
+              )}
+
+              {/* Features */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     Features (One per line)
@@ -439,6 +729,32 @@ export default function RentalPlanManagement() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
                   placeholder="Free Installation&#10;Unlimited Service&#10;Lifetime Warranty"
                 />
+              </div>
+
+              {/* Free Uses & Free Parts */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Free Uses (One per line)</label>
+                  <textarea
+                    name="freeUses"
+                    value={formData.freeUses}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
+                    placeholder="Unlimited Service Visits&#10;Free Filter Change&#10;Free Technician Visit"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Free Parts (One per line)</label>
+                  <textarea
+                    name="freeParts"
+                    value={formData.freeParts}
+                    onChange={handleInputChange}
+                    rows={4}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"
+                    placeholder="Sediment Filter&#10;Carbon Filter&#10;Membrane"
+                  />
+                </div>
               </div>
 
               {/* Linked Product & Description */}

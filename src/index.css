@@ -6,3 +6,17 @@
 body {
   font-family: var(--app-font);
 }
+#baseprice::-webkit-inner-spin-button,
+#baseprice::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+#baseprice {
+  -moz-appearance: textfield;
+}
+
+
+ 
+
+ 

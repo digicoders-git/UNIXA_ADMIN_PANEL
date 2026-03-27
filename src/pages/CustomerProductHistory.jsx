@@ -143,8 +143,13 @@ export default function CustomerProductHistory() {
                           <div className="font-bold text-sm" style={{ color: themeColors.text }}>
                             {customer.name}
                           </div>
-                          <div className="text-[10px] opacity-60 uppercase font-bold tracking-tight" style={{ color: themeColors.text }}>
-                            {customer.address?.city || "N/A"}
+                          <div className="text-[10px] opacity-60 font-bold tracking-tight" style={{ color: themeColors.text }}>
+                            {[
+                              customer.address?.house,
+                              customer.address?.area,
+                              customer.address?.city,
+                              customer.address?.pincode
+                            ].filter(Boolean).join(", ") || "N/A"}
                           </div>
                         </td>
                         <td className="p-4">
