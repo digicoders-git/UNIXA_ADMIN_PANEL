@@ -1681,7 +1681,7 @@ useEffect(() => {
                     className="block mb-1 text-sm font-medium"
                     style={{ color: themeColors.text }}
                   >
-                    Price (₹) <span className="text-red-500">*</span>
+                    MRP (₹) <span className="text-red-500">*</span>
                   </label>
                   <input
                     id="price"
