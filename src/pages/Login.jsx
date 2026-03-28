@@ -5,6 +5,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useNavigate } from "react-router-dom";
 import { adminLogin } from "../apis/auth";
+import logo from '../../public/logo1.png'
 
 const Login = () => {
   const [credentials, setCredentials] = useState({
@@ -81,9 +82,9 @@ const Login = () => {
         <div className="text-center mb-4">
           <div className="w-full h-40 mx-auto mb- flex items-center justify-center p-2">
             <img
-              src="/logo1.png"
+              src={logo}
               alt="Unixa Logo"
-              className="w-100px h-100px object-contain"
+              className="w-50 h-50 object-contain"
             />
           </div>
 

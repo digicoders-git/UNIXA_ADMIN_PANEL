@@ -1,6 +1,7 @@
 // src/pages/Sidebar.jsx
 import { Link } from "react-router-dom";
 import { memo, useState } from "react";
+import logo from "../../public/logo1.png";
 import { 
   FaTachometerAlt, 
   FaGavel, 
@@ -178,9 +179,9 @@ const Sidebar = ({
           className="flex items-center justify-center h-36 px-4 border-b"
           style={{ borderColor: themeColors.border }}
         >
-          <div className="flex flex-col items-center gap-2 w-full py-2">
+          <div className="flex flex-col items-center">
             <img 
-              src="/favicon.png" 
+              src={logo}
               alt="UNIXA Logo" 
               className="w-28 h-28 object-contain" 
             />
