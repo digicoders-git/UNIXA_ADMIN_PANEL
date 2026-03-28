@@ -35,6 +35,7 @@ export default function RentalPlanManagement() {
     amcPlans: [],
     productId: "",
     description: "",
+    showOnWebsite: false,
   });
   const [imagePreview, setImagePreview] = useState(null);
 
@@ -95,6 +96,7 @@ export default function RentalPlanManagement() {
       amcPlans: [],
       productId: "",
       description: "",
+      showOnWebsite: false,
     });
     setImagePreview(null);
     setIsModalOpen(true);
@@ -177,6 +179,7 @@ export default function RentalPlanManagement() {
     submissionData.append("securityMoney", formData.securityMoney);
     submissionData.append("discount", formData.discount || 0);
     submissionData.append("isActive", formData.isActive);
+    submissionData.append("showOnWebsite", String(formData.showOnWebsite));
 
     const featuresArray = formData.features.split("\n").filter(f => f.trim() !== "");
     submissionData.append("features", JSON.stringify(featuresArray));

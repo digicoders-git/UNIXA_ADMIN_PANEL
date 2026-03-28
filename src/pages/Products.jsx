@@ -60,6 +60,7 @@ const emptyForm = {
   isActive: true,
   offerId: "",
   amcPlans: [],
+  showOnWebsite: false,
 };
 
 export default function Products() {

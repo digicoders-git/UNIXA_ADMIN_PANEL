@@ -38,6 +38,7 @@ const emptyForm = {
   isActive: true,
   warrantyYears: "0",
   stock: "0",
+  showOnWebsite: false,
 };
 
 export default function ROParts() {
@@ -152,6 +153,7 @@ export default function ROParts() {
     fd.append("description", form.description);
     fd.append("categoryId", form.categoryId);
     fd.append("isActive", String(form.isActive));
+    fd.append("showOnWebsite", String(form.showOnWebsite));
     fd.append("warrantyYears", form.warrantyYears);
     fd.append("stock", form.stock);
     if (imageFile) fd.append("mainImage", imageFile);
